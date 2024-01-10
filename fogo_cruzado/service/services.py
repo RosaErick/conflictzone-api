@@ -2,7 +2,6 @@ import requests
 from datetime import datetime
 from django.conf import settings
 from fogo_cruzado.models import Occurrence
-import json
 from django.core.serializers.json import DjangoJSONEncoder
 
 
@@ -24,7 +23,7 @@ class FogoCruzadoService:
         params = {
             'idState': 'b112ffbe-17b3-4ad0-8f2a-2038745d1d14',
             'page': '1',
-            'take': '5'  # Adjust the number of records as needed
+            'take': '15'  
         }
         url = "https://api-service.fogocruzado.org.br/api/v2/occurrences"
         headers = {'Authorization': f'Bearer {token}'}
@@ -47,8 +46,8 @@ class FogoCruzadoService:
                     date=datetime.fromisoformat(item.get('date', '1900-01-01T00:00:00.000Z')),
                     police_action=item.get('policeAction', False),
                     agent_presence=item.get('agentPresence', False),
-                    context_info=item.get('contextInfo', {}),  # Pass as dictionary
-                    victims=item.get('victims', [])           # Pass as list
+                    context_info=item.get('contextInfo', {}),  
+                    victims=item.get('victims', [])           
                 )
                 processed_data.append(occurrence)
         return processed_data
@@ -77,7 +76,7 @@ class FogoCruzadoService:
             if not created:
                 occurrence.latitude = data.latitude
                 occurrence.longitude = data.longitude
-                # ... update other fields if necessary
+               
                 occurrence.save()
 
     @classmethod
