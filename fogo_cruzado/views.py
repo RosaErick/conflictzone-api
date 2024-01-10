@@ -26,6 +26,9 @@ def fetch_fogo_cruzado_occurrences():
     params = {
          'agentPresence': 'true',
         'idState': 'b112ffbe-17b3-4ad0-8f2a-2038745d1d14',
+        'policeAction': 'true',
+        'page': '1',
+        'take': '1000'  
     }
     url = "https://api-service.fogocruzado.org.br/api/v2/occurrences"
     headers = {'Authorization': f'Bearer {token}'}
