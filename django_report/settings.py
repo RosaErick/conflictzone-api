@@ -38,7 +38,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'fogo_cruzado'
+    'fogo_cruzado',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
@@ -49,6 +50,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware'
 ]
 
 ROOT_URLCONF = 'django_report.urls'
@@ -72,6 +74,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'django_report.wsgi.application'
 FOGO_CRUZADO_EMAIL = os.getenv('FOGO_CRUZADO_EMAIL')
 FOGO_CRUZADO_PASSWORD = os.getenv('FOGO_CRUZADO_PASSWORD')
+
+
+# Configure CORS
+CORS_ALLOW_ALL_ORIGINS = True 
+
+CORS_ORIGIN_WHITELIST = [
+     'http://localhost:3000'
+]
 
 
 # Database
