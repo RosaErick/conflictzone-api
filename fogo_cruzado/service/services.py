@@ -22,7 +22,7 @@ class FogoCruzadoService:
     def fetch_data(token, filters=None):
         params = {
             'idState': 'b112ffbe-17b3-4ad0-8f2a-2038745d1d14',
-            'take': 5000,
+            'take': 50000,
         }
         
         if filters:
