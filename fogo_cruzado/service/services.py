@@ -22,7 +22,7 @@ class FogoCruzadoService:
     def fetch_data(token, filters=None):
         params = {
             'idState': 'b112ffbe-17b3-4ad0-8f2a-2038745d1d14',
-            'take': 50000,
+            'take': 5000,
         }
         
         if filters:
@@ -30,8 +30,7 @@ class FogoCruzadoService:
                 params['initialdate'] = filters['initialdate']
             if 'finaldate' in filters and filters['finaldate']:
                 params['finaldate'] = filters['finaldate']
-            if 'mainReason' in filters and filters['mainReason']:
-                params['mainReason'] = filters['mainReason']   
+
         
         
         url = "https://api-service.fogocruzado.org.br/api/v2/occurrences"
@@ -45,22 +44,28 @@ class FogoCruzadoService:
         return response.json()['data']
 
     @staticmethod
-    def process_data(raw_data):
+    def process_data(raw_data, filters=None):
         processed_data = []
         for item in raw_data:
-                if item.get('agentPresence') and item.get('policeAction'):
-                 occurrence = Occurrence(
-                    occurrence_id=item['id'],
-                    latitude=float(item.get('latitude', 0)),
-                    longitude=float(item.get('longitude', 0)),
-                    address=item.get('address', ''),
-                    date=datetime.fromisoformat(item.get('date', '1900-01-01T00:00:00.000Z')),
-                    police_action=item.get('policeAction', False),
-                    agent_presence=item.get('agentPresence', False),
-                    context_info=item.get('contextInfo', {}),  
-                    victims=item.get('victims', [])           
-                )
-                processed_data.append(occurrence)
+            print("filter:", filters)
+            if filters and 'mainReason' in filters:
+                main_reason_filter = filters['mainReason']
+                main_reason = item.get('contextInfo', {}).get('mainReason', {}).get('name')
+                if main_reason_filter and main_reason != main_reason_filter:
+                    continue
+
+            occurrence = Occurrence(
+                occurrence_id=item['id'],
+                latitude=float(item.get('latitude', 0)),
+                longitude=float(item.get('longitude', 0)),
+                address=item.get('address', ''),
+                date=datetime.fromisoformat(item.get('date', '1900-01-01T00:00:00.000Z')),
+                police_action=item.get('policeAction', False),
+                agent_presence=item.get('agentPresence', False),
+                context_info=item.get('contextInfo', {}),  
+                victims=item.get('victims', [])           
+            )
+            processed_data.append(occurrence)
         return processed_data
   
 
@@ -99,7 +104,7 @@ class FogoCruzadoService:
                 print("raw_data is None")
                 return []
             
-            processed_data = cls.process_data(raw_data)
+            processed_data = cls.process_data(raw_data, filters=filters)
             if processed_data is None:
                 print("processed_data is None")
                 return []
