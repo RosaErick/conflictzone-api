@@ -40,8 +40,22 @@ class FogoCruzadoService:
         
         
         print("url with params:", response.url)
-        print(response.json()['data'])
+        
         return response.json()['data']
+    
+    
+    
+    @staticmethod
+    def calculate_weight(occurrence):
+        weight = 4
+        
+        weight += len(occurrence.get('victims', [])) * 20
+        
+        # Increase weight for occurrences with police action and agent presence
+        if occurrence.get('policeAction', False) and occurrence.get('agentPresence', False):
+            weight += 15
+            
+        return weight
 
     @staticmethod
     def process_data(raw_data, filters=None):
@@ -53,7 +67,9 @@ class FogoCruzadoService:
                 main_reason = item.get('contextInfo', {}).get('mainReason', {}).get('name')
                 if main_reason_filter and main_reason != main_reason_filter:
                     continue
-
+             
+            weight = FogoCruzadoService.calculate_weight(item)
+                    
             occurrence = Occurrence(
                 occurrence_id=item['id'],
                 latitude=float(item.get('latitude', 0)),
@@ -63,7 +79,8 @@ class FogoCruzadoService:
                 police_action=item.get('policeAction', False),
                 agent_presence=item.get('agentPresence', False),
                 context_info=item.get('contextInfo', {}),  
-                victims=item.get('victims', [])           
+                victims=item.get('victims', []),
+                weight=weight,           
             )
             processed_data.append(occurrence)
         return processed_data
@@ -86,7 +103,8 @@ class FogoCruzadoService:
                     'police_action': data.police_action,
                     'agent_presence': data.agent_presence,
                     'context_info': data.context_info,
-                    'victims': data.victims
+                    'victims': data.victims,
+                    'weight': data.weight,
                 }
             )
             if not created:
@@ -109,7 +127,7 @@ class FogoCruzadoService:
                 print("processed_data is None")
                 return []
 
-            print("Processed Data:", processed_data)
+            
             return processed_data
         except Exception as e:
             print(f"Error in update_occurrences: {str(e)}")
