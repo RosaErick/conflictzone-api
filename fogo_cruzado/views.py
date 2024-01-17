@@ -9,13 +9,15 @@ def health_view(request):
 
 def occurrences_view(request):
     try:
-        # Extracting filters from request query parameters
+       
         filters = {
             'initialdate': request.GET.get('initialdate'),
             'finaldate': request.GET.get('finaldate'),
-            'mainReason': request.GET.get('mainReason')
+            'mainReason': request.GET.get('mainReason'),
+            'typeOccurrence': request.GET.get('typeOccurrence')
         }
-
+        
+        
         processed_data = FogoCruzadoService.update_occurrences(filters=filters)
 
         data = []

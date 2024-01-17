@@ -26,12 +26,20 @@ class FogoCruzadoService:
         }
         
         if filters:
+            if 'typeOccurrence' in filters and filters['typeOccurrence'] == 'Completo':
+                del filters['typeOccurrence']
+            
             if 'initialdate' in filters and filters['initialdate']:
                 params['initialdate'] = filters['initialdate']
             if 'finaldate' in filters and filters['finaldate']:
                 params['finaldate'] = filters['finaldate']
+            if 'typeOccurrence' in filters and filters['typeOccurrence']:
+                params['typeOccurrence'] = filters['typeOccurrence']   
+
+       
 
         
+       
         
         url = "https://api-service.fogocruzado.org.br/api/v2/occurrences"
         headers = {'Authorization': f'Bearer {token}'}
@@ -61,7 +69,7 @@ class FogoCruzadoService:
     def process_data(raw_data, filters=None):
         processed_data = []
         for item in raw_data:
-            print("filter:", filters)
+         
             if filters and 'mainReason' in filters:
                 main_reason_filter = filters['mainReason']
                 main_reason = item.get('contextInfo', {}).get('mainReason', {}).get('name')
