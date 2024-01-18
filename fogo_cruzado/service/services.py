@@ -22,13 +22,10 @@ class FogoCruzadoService:
     def fetch_data(token, filters=None):
         params = {
             'idState': 'b112ffbe-17b3-4ad0-8f2a-2038745d1d14',
-            'take': 5000,
+            'take': 50,
         }
         
-        if filters:
-            if 'typeOccurrence' in filters and filters['typeOccurrence'] == 'Completo':
-                del filters['typeOccurrence']
-            
+        if filters:    
             if 'initialdate' in filters and filters['initialdate']:
                 params['initialdate'] = filters['initialdate']
             if 'finaldate' in filters and filters['finaldate']:
@@ -70,12 +67,13 @@ class FogoCruzadoService:
         processed_data = []
         for item in raw_data:
          
-            if filters and 'mainReason' in filters:
+            if filters and 'mainReason' in filters and filters['mainReason']:
                 main_reason_filter = filters['mainReason']
-                main_reason = item.get('contextInfo', {}).get('mainReason', {}).get('name')
-                if main_reason_filter and main_reason != main_reason_filter:
-                    continue
-             
+                main_reason = item.get('contextInfo', {}).get('mainReason', {}).get('name', '')
+                if main_reason_filter is not None and main_reason != main_reason_filter:
+                    continue  # Skip this occurrence
+            
+           
             weight = FogoCruzadoService.calculate_weight(item)
                     
             occurrence = Occurrence(
