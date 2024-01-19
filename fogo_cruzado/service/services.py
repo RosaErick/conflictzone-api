@@ -1,3 +1,4 @@
+import re 
 import requests
 from datetime import datetime
 from django.conf import settings
@@ -22,7 +23,7 @@ class FogoCruzadoService:
     def fetch_data(token, filters=None):
         params = {
             'idState': 'b112ffbe-17b3-4ad0-8f2a-2038745d1d14',
-            'take': 50,
+            'take': 10000,
         }
         
         if filters:    
@@ -46,6 +47,10 @@ class FogoCruzadoService:
         
         print("url with params:", response.url)
         
+
+        
+        print("length of the response:", len(response.json()['data']))
+        
         return response.json()['data']
     
     
@@ -56,12 +61,32 @@ class FogoCruzadoService:
         
         weight += len(occurrence.get('victims', [])) * 20
         
-        # Increase weight for occurrences with police action and agent presence
+  
         if occurrence.get('policeAction', False) and occurrence.get('agentPresence', False):
             weight += 15
             
         return weight
+    
+    @staticmethod
+    def validate_coordinate(value, is_latitude=True):
+        try:
+            cleaned_value = re.sub(r'[^\d.-]', '', value.strip())
+            
+            if re.match(r'^-?\d+(?:\.\d+)?$', cleaned_value) is None:
+                raise ValueError(f"Invalid coordinate format: {value}")
 
+            coord = float(cleaned_value)
+            if is_latitude and -90 <= coord <= 90:  
+                return coord
+            elif not is_latitude and -180 <= coord <= 180:  
+                return coord
+            else:
+                raise ValueError(f"Coordinate out of range: {value}")
+        except ValueError as e:
+            print(e)  
+            return None
+
+        
     @staticmethod
     def process_data(raw_data, filters=None):
         processed_data = []
@@ -74,12 +99,16 @@ class FogoCruzadoService:
                     continue  # Skip this occurrence
             
            
+           
+            latitude = FogoCruzadoService.validate_coordinate(item.get('latitude', '0'))
+            longitude = FogoCruzadoService.validate_coordinate(item.get('longitude', '0'))
+            
             weight = FogoCruzadoService.calculate_weight(item)
                     
             occurrence = Occurrence(
                 occurrence_id=item['id'],
-                latitude=float(item.get('latitude', 0)),
-                longitude=float(item.get('longitude', 0)),
+                latitude=latitude,
+                longitude=longitude,
                 address=item.get('address', ''),
                 date=datetime.fromisoformat(item.get('date', '1900-01-01T00:00:00.000Z')),
                 police_action=item.get('policeAction', False),
