@@ -13,6 +13,8 @@ class Occurrence(models.Model):
     context_info = models.TextField(blank=True, null=True)
     victims = models.TextField(blank=True, null=True)
     weight = models.FloatField(blank=True, null=True)
+    neighborhood = models.TextField(blank=True, null=True)
+    city = models.TextField(blank=True, null=True)
 
     def save(self, *args, **kwargs):
         if isinstance(self.context_info, dict):

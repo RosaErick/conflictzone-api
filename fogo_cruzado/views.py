@@ -32,7 +32,9 @@ def occurrences_view(request):
                 'police_action': occurrence.police_action,
                 'agent_presence': occurrence.agent_presence,
                 'context_info': occurrence.context_info,  
-                'victims': occurrence.victims            
+                'victims': occurrence.victims,
+                'neighborhood': occurrence.neighborhood,
+                'city': occurrence.city,            
             }
             data.append(occurrence_dict)  
 

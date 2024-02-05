@@ -23,7 +23,8 @@ class FogoCruzadoService:
     def fetch_data(token, filters=None):
         params = {
             'idState': 'b112ffbe-17b3-4ad0-8f2a-2038745d1d14',
-            'take': 10000,
+            'idCities[]':'d1bf56cc-6d85-4e6a-a5f5-0ab3f4074be3',
+            'take': 30000,
         }
         
         if filters:    
@@ -36,7 +37,7 @@ class FogoCruzadoService:
 
        
 
-        
+         
        
         
         url = "https://api-service.fogocruzado.org.br/api/v2/occurrences"
@@ -44,7 +45,7 @@ class FogoCruzadoService:
         response = requests.get(url, headers=headers, params=params)
         response.raise_for_status()
         
-        
+        print("response:", response.json()['data'])
         print("url with params:", response.url)
         
 
@@ -115,7 +116,9 @@ class FogoCruzadoService:
                 agent_presence=item.get('agentPresence', False),
                 context_info=item.get('contextInfo', {}),  
                 victims=item.get('victims', []),
-                weight=weight,           
+                weight=weight,
+                neighborhood=item.get('neighborhood', {}),   
+                city=item.get('city', {}),      
             )
             processed_data.append(occurrence)
         return processed_data
@@ -140,6 +143,8 @@ class FogoCruzadoService:
                     'context_info': data.context_info,
                     'victims': data.victims,
                     'weight': data.weight,
+                    'neighborhood': data.neighborhood,
+                    'city': data.city,
                 }
             )
             if not created:
