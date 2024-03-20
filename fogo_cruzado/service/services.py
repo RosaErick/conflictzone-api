@@ -97,7 +97,7 @@ class FogoCruzadoService:
                 main_reason_filter = filters['mainReason']
                 main_reason = item.get('contextInfo', {}).get('mainReason', {}).get('name', '')
                 if main_reason_filter is not None and main_reason != main_reason_filter:
-                    continue  # Skip this occurrence
+                    continue  
             
            
            
@@ -127,7 +127,7 @@ class FogoCruzadoService:
     @staticmethod
     def save_data(processed_data):
         for data in processed_data:
-            # Debugging: Print values before saving
+           
             print("Saving Occurrence - Context Info:", data.context_info)
             print("Saving Occurrence - Victims:", data.victims)
 

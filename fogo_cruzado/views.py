@@ -4,7 +4,7 @@ from django.http import JsonResponse
 from .service.services import FogoCruzadoService
 
 def health_view(request):
-    return HttpResponse("Health Check OK CARAJOOOOO")
+    return HttpResponse("Health Check")
 
 
 def occurrences_view(request):
