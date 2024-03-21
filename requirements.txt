@@ -179,11 +179,8 @@ rpmautospec==0.6.3
 rpmautospec-core==0.1.4
 rsa==4.9
 s3transfer==0.10.0
-selinux @ file:///builddir/build/BUILD/libselinux-3.5/src
-sepolicy @ file:///builddir/build/BUILD/selinux-3.5/python/sepolicy
 setools==4.4.3
 setproctitle==1.2.3
-setroubleshoot @ file:///builddir/build/BUILD/setroubleshoot-3.3.33/src
 setuptools==67.7.2
 sgmllib3k==1.0.0
 simpleaudio==1.0.4
