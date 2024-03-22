@@ -4,6 +4,8 @@ from datetime import datetime
 from django.conf import settings
 from fogo_cruzado.models import Occurrence
 from django.core.serializers.json import DjangoJSONEncoder
+from dateutil import parser
+
 
 
 
@@ -111,7 +113,7 @@ class FogoCruzadoService:
                 latitude=latitude,
                 longitude=longitude,
                 address=item.get('address', ''),
-                date=datetime.fromisoformat(item.get('date', '1900-01-01T00:00:00.000Z')),
+               date = parser.isoparse(item.get('date', '1900-01-01T00:00:00.000Z')),
                 police_action=item.get('policeAction', False),
                 agent_presence=item.get('agentPresence', False),
                 context_info=item.get('contextInfo', {}),  
