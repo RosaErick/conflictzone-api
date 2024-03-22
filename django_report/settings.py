@@ -79,7 +79,8 @@ FOGO_CRUZADO_PASSWORD = os.getenv('FOGO_CRUZADO_PASSWORD')
 CORS_ALLOW_ALL_ORIGINS = True 
 
 CORS_ORIGIN_WHITELIST = [
-     'http://localhost:3000'
+     'http://localhost:3000',
+     'https://nextjs-boilerplate-red-one-74.vercel.app/'
 ]
 
 
