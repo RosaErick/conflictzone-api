@@ -1,14 +1,15 @@
 {
-    "builds": [
-      {
-        "src": "django_report/wsgi.py",
-        "use": "@vercel/python"
-      }
-    ],
-    "routes": [
-      {
-        "src": "/(.*)",
-        "dest": "django_report/wsgi.py"
-      }
-    ]
-  }
+  "builds": [
+    {
+      "src": "django_report/wsgi.py",
+      "use": "@vercel/python",
+      "config": { "maxLambdaSize": "15mb" }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "django_report/wsgi.py"
+    }
+  ]
+}
