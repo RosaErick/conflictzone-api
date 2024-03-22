@@ -69,7 +69,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'django_report.wsgi.application'
+WSGI_APPLICATION = 'django_report.wsgi.app'
 FOGO_CRUZADO_EMAIL = os.getenv('FOGO_CRUZADO_EMAIL')
 FOGO_CRUZADO_PASSWORD = os.getenv('FOGO_CRUZADO_PASSWORD')
 
