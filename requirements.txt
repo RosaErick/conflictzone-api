@@ -25,7 +25,7 @@ dasbus==1.7
 decorator==5.1.1
 defusedxml==0.7.1
 distro==1.8.0
-Django==5.0.1
+Django==4.2.11
 django-cors-headers==4.3.1
 dnf==4.19.0
 dnspython==2.4.2

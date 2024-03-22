@@ -2,8 +2,7 @@
     "builds": [
       {
         "src": "django_report/wsgi.py",
-        "use": "@vercel/python",
-        "config": { "pythonVersion": "3.10" }
+        "use": "@vercel/python"
       }
     ],
     "routes": [
