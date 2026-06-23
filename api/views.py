@@ -40,7 +40,8 @@ def get_filters(request):
         'finaldate': request.GET.get('finaldate'),
         'mainReason': request.GET.get('mainReason'),
         'typeOccurrence': request.GET.get('typeOccurrence'),
-        'type': request.GET.get('type'),
+        # 'type' may be repeated (multi-select); getlist returns [] when absent.
+        'type': request.GET.getlist('type') or None,
         'city': request.GET.get('city'),
         'policePresent': parse_bool(request.GET.get('policePresent')),
         'victimStatus': request.GET.get('victimStatus'),
@@ -51,8 +52,9 @@ def get_pagination(request):
     """Extract pagination from request query parameters."""
     page = parse_int(request.GET.get('page'), 1)
     take = parse_int(request.GET.get('take'), 100)
-    # Limit take to reasonable max
-    take = min(take, 1000)
+    # Limit take to a reasonable max. The whole dataset is already fetched and
+    # cached server-side, so a larger page lets the map/table cover a full month.
+    take = min(take, 5000)
     return page, take
 
 

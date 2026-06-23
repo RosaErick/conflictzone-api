@@ -1,0 +1,28 @@
+services:
+  web:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Persist the SQLite DB on a named volume (survives rebuilds/deploys).
+      - SQLITE_DIR=/app/data
+    volumes:
+      - db_data:/app/data
+      - static_data:/app/staticfiles
+    expose:
+      - "8000"
+
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - static_data:/app/staticfiles:ro
+    depends_on:
+      - web
+
+volumes:
+  db_data:
+  static_data:

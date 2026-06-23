@@ -21,12 +21,20 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-)gwbe(_t3ixi)p4j)^2x2b2^$h)f4ilxwhn_lzzz9i$%aawy36'
+# Falls back to the original insecure key for local dev; set DJANGO_SECRET_KEY in prod.
+SECRET_KEY = os.getenv(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-)gwbe(_t3ixi)p4j)^2x2b2^$h)f4ilxwhn_lzzz9i$%aawy36',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# Defaults to True for local dev; set DJANGO_DEBUG=False in prod.
+DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = ['127.0.0.1', '.vercel.app', '137.184.134.60', 'analyticsapi.duckdns.org']
+# Comma-separated list via env (e.g. "1.2.3.4,api.example.com"); merged with defaults.
+_default_hosts = ['127.0.0.1', 'localhost', '.vercel.app']
+_env_hosts = [h.strip() for h in os.getenv('DJANGO_ALLOWED_HOSTS', '').split(',') if h.strip()]
+ALLOWED_HOSTS = _default_hosts + _env_hosts
 
 
 # Application definition
@@ -89,10 +97,14 @@ CORS_ORIGIN_WHITELIST = [
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
+# SQLITE_DIR lets the container point the DB at a mounted volume so it persists
+# across deploys; defaults to the project root for local dev.
+SQLITE_DIR = Path(os.getenv('SQLITE_DIR', BASE_DIR))
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'NAME': SQLITE_DIR / 'db.sqlite3',
     }
 }
 
@@ -132,7 +144,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
 STATIC_URL = 'static/'
-STATIC_ROOT = '/root/app/PatrolAnalytics-API/staticfiles'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 
 # Default primary key field type

@@ -17,6 +17,10 @@ OCCURRENCES_TTL = 300  # seconds the fetched dataset stays cached
 
 
 class FogoCruzadoService:
+    # Upstream pagination tuning.
+    PER_PAGE = 1000   # records per request: fast enough to avoid the 502
+    MAX_PAGES = 50    # safety cap (~50k records) for very wide date ranges
+
     @staticmethod
     def count_fatalities(victims):
         """Count victims with 'Dead' situation status."""
@@ -26,10 +30,10 @@ class FogoCruzadoService:
 
     @staticmethod
     def count_injuries(victims):
-        """Count victims with 'Injured' situation status."""
+        """Count victims with 'Wounded' situation status (the API's label for injured)."""
         if not victims:
             return 0
-        return sum(1 for v in victims if v.get('situation') == 'Injured')
+        return sum(1 for v in victims if v.get('situation') == 'Wounded')
 
     @staticmethod
     def get_occurrence_type(context_info):
@@ -75,43 +79,67 @@ class FogoCruzadoService:
 
     @staticmethod
     def fetch_data(token, filters=None):
-        params = {
+        # Filter params shared by every page request (no pagination keys here).
+        base_params = {
             'idState': 'b112ffbe-17b3-4ad0-8f2a-2038745d1d14',
-            'take': 1000,
         }
 
         # Default to Rio de Janeiro if no city specified
         city_id = 'd1bf56cc-6d85-4e6a-a5f5-0ab3f4074be3'
 
         if filters:
-            if 'initialdate' in filters and filters['initialdate']:
-                params['initialdate'] = filters['initialdate']
-            if 'finaldate' in filters and filters['finaldate']:
-                params['finaldate'] = filters['finaldate']
-            if 'typeOccurrence' in filters and filters['typeOccurrence']:
-                params['typeOccurrence'] = filters['typeOccurrence']
-            if 'city' in filters and filters['city']:
+            if filters.get('initialdate'):
+                base_params['initialdate'] = filters['initialdate']
+            if filters.get('finaldate'):
+                base_params['finaldate'] = filters['finaldate']
+            if filters.get('typeOccurrence'):
+                base_params['typeOccurrence'] = filters['typeOccurrence']
+            if filters.get('city'):
                 city_name = filters['city'].lower()
                 city_id = FogoCruzadoService.CITY_IDS.get(city_name, city_id)
 
-        params['idCities[]'] = city_id
+        base_params['idCities[]'] = city_id
 
         # Reuse a recently fetched dataset: a dashboard hits several endpoints
-        # at once, all asking for the same data. Cache by the actual params.
-        cache_key = 'fogo_cruzado_occ:' + json.dumps(params, sort_keys=True)
+        # at once, all asking for the same data. Cache by the filter params
+        # (pagination is internal, so it is not part of the key).
+        cache_key = 'fogo_cruzado_occ:' + json.dumps(base_params, sort_keys=True)
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
 
         url = "https://api-service.fogocruzado.org.br/api/v2/occurrences"
         headers = {'Authorization': f'Bearer {token}'}
-        response = requests.get(url, headers=headers, params=params, timeout=30)
-        response.raise_for_status()
 
-        data = response.json()['data']
-        print("length of the response:", len(data))
-        cache.set(cache_key, data, timeout=OCCURRENCES_TTL)
-        return data
+        # Page through the upstream API until there are no more pages. A small
+        # per-page size keeps each request fast (avoids the upstream 502 we hit
+        # with take=30000); MAX_PAGES caps the worst case for huge date ranges.
+        all_data = []
+        page = 1
+        while page <= FogoCruzadoService.MAX_PAGES:
+            params = {**base_params, 'take': FogoCruzadoService.PER_PAGE, 'page': page}
+            try:
+                response = requests.get(url, headers=headers, params=params, timeout=30)
+                response.raise_for_status()
+            except requests.exceptions.RequestException as exc:
+                # A later page can fail (e.g. upstream 502 under load). Keep the
+                # pages we already have instead of discarding everything.
+                print(f"page {page} failed ({exc}); returning {len(all_data)} so far")
+                break
+
+            payload = response.json()
+            page_data = payload.get('data') or []
+            all_data.extend(page_data)
+
+            meta = payload.get('pageMeta') or {}
+            if not meta.get('hasNextPage') or not page_data:
+                break
+            page += 1
+
+        print(f"fetched {len(all_data)} occurrences across {page} page(s)")
+        if all_data:
+            cache.set(cache_key, all_data, timeout=OCCURRENCES_TTL)
+        return all_data
     
     
     
@@ -167,17 +195,19 @@ class FogoCruzadoService:
                 if not police_present and has_police:
                     continue
 
-            # Filter by type (mainReason.name)
-            if filters and 'type' in filters and filters['type']:
+            # Filter by type (mainReason.name). Accepts one value or a list, so
+            # the frontend's multi-select sends every chosen type.
+            if filters and filters.get('type'):
                 type_filter = filters['type']
+                allowed_types = type_filter if isinstance(type_filter, (list, tuple, set)) else [type_filter]
                 item_type = item.get('contextInfo', {}).get('mainReason', {}).get('name', '')
-                if item_type != type_filter:
+                if item_type not in allowed_types:
                     continue
 
             # Filter by victimStatus
             victims = item.get('victims', [])
             fatalities = sum(1 for v in victims if v.get('situation') == 'Dead')
-            injuries = sum(1 for v in victims if v.get('situation') == 'Injured')
+            injuries = sum(1 for v in victims if v.get('situation') == 'Wounded')
 
             if filters and 'victimStatus' in filters and filters['victimStatus']:
                 status = filters['victimStatus']
