@@ -38,8 +38,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'fogo_cruzado',
-    "corsheaders",
+    'rest_framework',
+    'drf_spectacular',
+    'corsheaders',
+    'api',
 ]
 
 MIDDLEWARE = [
@@ -53,7 +55,7 @@ MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware'
 ]
 
-ROOT_URLCONF = 'django_report.urls'
+ROOT_URLCONF = 'core.urls'
 
 TEMPLATES = [
     {
@@ -71,7 +73,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'django_report.wsgi.app'
+WSGI_APPLICATION = 'core.wsgi.app'
 FOGO_CRUZADO_EMAIL = os.getenv('FOGO_CRUZADO_EMAIL')
 FOGO_CRUZADO_PASSWORD = os.getenv('FOGO_CRUZADO_PASSWORD')
 
@@ -137,4 +139,18 @@ STATIC_ROOT = '/root/app/PatrolAnalytics-API/staticfiles'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Django REST Framework
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+# drf-spectacular settings
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'ConflictZone API',
+    'DESCRIPTION': 'API for conflict/violence occurrence data from Fogo Cruzado',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
 

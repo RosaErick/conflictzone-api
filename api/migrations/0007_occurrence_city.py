@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('fogo_cruzado', '0006_occurrence_neighborhood'),
+        ('api', '0006_occurrence_neighborhood'),
     ]
 
     operations = [

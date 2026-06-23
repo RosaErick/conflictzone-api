@@ -12,6 +12,6 @@ from dotenv import load_dotenv
 from django.core.wsgi import get_wsgi_application
 
 load_dotenv()
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'django_report.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
 
 app = get_wsgi_application()
