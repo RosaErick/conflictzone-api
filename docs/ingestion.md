@@ -16,8 +16,9 @@ Dois modos, decididos pela presença de `--initial-date`:
 | **Incremental** | sem `--initial-date` | últimos `N` dias (default `INGESTION_DEFAULT_DAYS=3`) até agora |
 | **Backfill** | com `--initial-date`/`--final-date` | exatamente a janela informada |
 
-O cron de produção usa o modo **incremental** (sem args). O **backfill** é manual,
-fatiado por ano (ver abaixo).
+Produção usa o modo **incremental** (sem args), rodado **manualmente a cada
+~3 dias** por enquanto (sem cron automático — ver [decisions.md](decisions.md#adr-010)).
+O **backfill** é manual, fatiado por ano (ver abaixo).
 
 ## A lógica de tempo (o que você perguntou)
 
@@ -54,14 +55,19 @@ done
 
 Rodar duas vezes não duplica: a segunda passada marca tudo como `updated`.
 
-## Cron incremental (produção)
+## Ingestão incremental (produção)
 
-```cron
-0 * * * * cd /caminho/do/projeto && /usr/bin/docker compose run --rm web \
-  python manage.py sync_occurrences >> /var/log/cz-ingest.log 2>&1
+Hoje é **manual, rodada a cada ~3 dias** (decisão deliberada; não há cron
+automático ativo — ver [decisions.md](decisions.md#adr-010)):
+
+```sh
+docker compose run --rm web python manage.py sync_occurrences
 ```
 
-Sem args → últimos 3 dias. Idempotente, então rodar de hora em hora só atualiza.
+Sem args → últimos 3 dias. Idempotente, então re-rodar só atualiza, e a janela
+de 3 dias cobre a folga entre execuções. Automatizar via cron é um upgrade
+adiado (ver [roadmap.md](roadmap.md)); ao fazê-lo, baixe `INGESTION_MAX_AGE_HOURS`
+de volta para perto da janela incremental.
 
 ## Idempotência
 
@@ -95,7 +101,9 @@ Cada execução grava: `started_at`, `finished_at`, `status`
 (`success`/`partial`/`failed`), `fetched`, `created`, `updated`, `error`.
 Visível em `/admin/` e resumido em `/health/` (idade da última ingestão).
 A API responde **503** se a última ingestão estiver mais velha que
-`INGESTION_MAX_AGE_HOURS` (default 6h) — falha honesta em vez de dados velhos.
+`INGESTION_MAX_AGE_HOURS` (default 96h) — falha honesta em vez de dados velhos.
+O teto está calibrado para a cadência manual de ~3 dias: serve para pegar "nunca
+ingeriu" ou "abandonado demais", não "passou algumas horas".
 
 ## Variáveis de ambiente relevantes
 
@@ -104,4 +112,4 @@ A API responde **503** se a última ingestão estiver mais velha que
 | `FOGO_CRUZADO_EMAIL` / `_PASSWORD` | — | credenciais do provedor |
 | `FOGO_CRUZADO_STATE_ID` | UUID do RJ | estado ingerido (restringe ao RJ) |
 | `INGESTION_DEFAULT_DAYS` | `3` | janela do modo incremental |
-| `INGESTION_MAX_AGE_HOURS` | `6` | idade máxima antes de `/health` e endpoints reportarem 503 |
+| `INGESTION_MAX_AGE_HOURS` | `96` | idade máxima antes de `/health` e endpoints reportarem 503 (cadência manual de ~3 dias) |

@@ -27,8 +27,8 @@ lê do Postgres e agrega em SQL indexado. A ingestão roda em background (cron).
 
 ## Fluxo de dados (ponta a ponta)
 
-1. **Cron** (1x/hora) dispara `manage.py sync_occurrences` — sem datas, pega os
-   últimos 3 dias. Ver [ingestion.md](ingestion.md).
+1. **Ingestão** (`manage.py sync_occurrences`, manual a cada ~3 dias por
+   enquanto) — sem datas, pega os últimos 3 dias. Ver [ingestion.md](ingestion.md).
 2. **`client.py`** fala HTTP com a Fogo Cruzado (login, paginação, token) e
    devolve registros crus, página por página. Não conhece o banco.
 3. **`normalize.py`** (funções puras) transforma cada registro cru num DTO
@@ -46,7 +46,7 @@ lê do Postgres e agrega em SQL indexado. A ingestão roda em background (cron).
 | Banco | PostgreSQL 16 + **PostGIS** (GeoDjango) |
 | Servidor | gunicorn atrás de nginx |
 | Orquestração | Docker Compose (`db`, `web`, `nginx`) |
-| Agendamento | cron do SO chamando o management command |
+| Agendamento | manual por enquanto (`sync_occurrences` a cada ~3 dias); cron do SO é upgrade adiado |
 | Infra | Oracle Cloud Always Free (VM ARM Ampere A1) |
 | Qualidade | ruff (lint) + pytest + GitHub Actions |
 
