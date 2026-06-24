@@ -161,3 +161,8 @@ cython_debug/
 # Database backups (binary dumps, contain data — never commit)
 *.dump
 *.dump.tmp
+
+# Agent-facing / internal planning docs (kept local, not versioned)
+docs/agents.md
+docs/reference/
+docs/spatial-viz-plan.md
