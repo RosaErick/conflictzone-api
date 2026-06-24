@@ -16,16 +16,23 @@
   tz, agregações, contratos de erro). Sem rede.
 - [x] **Fase 4 — Observabilidade.** Middleware de log por request; índices
   verificados; idade da ingestão em `/health/`.
+- [x] **Produção (Oracle Always Free).** Stack Postgres+PostGIS no ar em
+  `137.131.217.162`; `db` exposto só no loopback (`127.0.0.1:5432`) para acesso
+  via túnel SSH (pgAdmin/DBeaver).
+- [x] **Backfill histórico 2020–2026.** Carga fatiada por mês (janelas pequenas
+  contornam o corte de resposta do upstream em `take` alto — ver abaixo).
+- [x] **Backup local automático.** [`scripts/backup.sh`](../scripts/backup.sh):
+  `pg_dump` rolável (temp → valida tamanho → move atômico; nunca sobrescreve um
+  backup bom com um ruim), agendado por cron.
 
 ## Não feito / em aberto (decisões pendentes do dono)
 
-- [ ] **Backup automatizado.** `pg_dump` agendado → Object Storage (Oracle 10 GB /
-  Backblaze B2 10 GB grátis). **É o item nº1 antes de chamar de "produção".**
-- [ ] **Backfill histórico 2020+.** Rodar a carga fatiada por ano (ver
-  [ingestion.md](ingestion.md#backfill-histórico-a-partir-de-2020)).
+- [ ] **Backup off-site + retenção.** Hoje há backup local rolável
+  ([`scripts/backup.sh`](../scripts/backup.sh) via cron). Falta enviar cópias
+  datadas para fora da VM (Oracle Object Storage / Backblaze B2, free tier).
 - [ ] **HTTPS + domínio.** Trocar nginx por Caddy (TLS automático) ou certbot.
-- [ ] **CORS restrito em prod.** Setar `CORS_ALLOWED_ORIGINS` para o domínio do
-  frontend (hoje aberto só em dev).
+- [ ] **CORS restrito em prod.** Hoje liberado para o front local (`localhost:8080`);
+  ao publicar o frontend, trocar `CORS_ALLOWED_ORIGINS` para o domínio dele.
 - [ ] **Migrar VM para shape Always Free** se a atual for paga (ver
   [decisions.md](decisions.md#adr-001)).
 
@@ -38,6 +45,7 @@
 | Janela fixa de 3 dias (não cursor) | re-busca a sobreposição | muitos dados/dia → guardar último `occurred_at` |
 | Contagem derivada (sem tabela `Victim`) | sem query por atributo de vítima | filtro por idade/raça/sexo → tabela `Victim` |
 | Token em memória por run | re-login a cada run | logins caros/frequentes → cache compartilhado |
+| `take=1000` fixo por página | anos recentes (payload maior) cortam a resposta do upstream em janela larga; backfill grande precisa ser fatiado (ex.: por mês) | recorrência/incômodo → expor `FOGO_CRUZADO_PER_PAGE` (ex.: 250) p/ paginar respostas menores |
 
 ## Ideias de visualização espacial (PostGIS, custo zero)
 

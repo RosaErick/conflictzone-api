@@ -161,7 +161,34 @@ crontab -e
 > `IngestionRun` (visível no `/admin/` e em `/health/`) já dá auditoria:
 > status `success`/`partial`/`failed` e contagens.
 
-## 8. Próximos passos (opcionais)
+## 8. Backup automático do banco
+
+O banco é a fonte de verdade e o backfill custou esforço — não deixe sem backup.
+O script [`scripts/backup.sh`](../scripts/backup.sh) faz um `pg_dump` **rolável**:
+escreve num temp, valida o tamanho e só então sobrescreve atomicamente o dump
+anterior. Um dump que falhe ou venha vazio **nunca** destrói o último backup bom.
+
+Rodar manualmente (da raiz do projeto):
+```sh
+./scripts/backup.sh            # gera/atualiza cz-latest.dump
+```
+
+Agendar (diário às 04:00) — `crontab -e`:
+```cron
+0 4 * * * cd ~/conflictzone-api && ./scripts/backup.sh >> /var/log/cz-backup.log 2>&1
+```
+
+Restaurar, se algum dia precisar:
+```sh
+docker compose exec -T db pg_restore -U conflictzone -d conflictzone --clean < cz-latest.dump
+```
+
+> ponytail: um arquivo rolável local + cron cobre o essencial. Suba para **cópias
+> datadas com retenção** e **upload off-site** (Oracle Object Storage / Backblaze
+> B2, ambos free tier) quando uma cópia local na mesma VM deixar de ser suficiente.
+> Os `*.dump` estão no `.gitignore` (binário com dados — nunca versionar).
+
+## 9. Próximos passos (opcionais)
 
 - **HTTPS + domínio:** aponte um domínio (ou DuckDNS grátis) para o IP, abra a
   porta 443 e troque o `nginx` por **Caddy** (TLS automático via Let's Encrypt) ou
