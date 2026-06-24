@@ -36,8 +36,9 @@ Mantenha o índice `docs/README.md` coerente. Docs desatualizados = bug.
 Diretas, concisas, explícitas. Dizem **o que** foi feito e **onde** mudou; o
 **porquê** só quando não for óbvio. Nada além disso — o histórico é público.
 
+- Idioma: **português**.
 - Assunto: `<área>: <o que foi feito>` — imperativo, conciso, sem ponto final
-  (ex.: `api: add bbox filter to /occurrences/`).
+  (ex.: `api: adiciona filtro bbox em /occurrences/`).
 - Corpo (se necessário): bullets diretos do que mudou e onde. **Sem** narrativa,
   contexto de conversa, status ("pronto para…", "para um novo agente") ou tom.
 - **Nunca vaze**: referências a arquivos locais/gitignored, planos internos,
