@@ -1,4 +1,4 @@
-"""Pure-transformation tests — no DB, no GDAL, no network (SimpleTestCase)."""
+"""Testes de transformação pura — sem DB, sem GDAL, sem rede (SimpleTestCase)."""
 from django.test import SimpleTestCase
 
 from api.services.fogo_cruzado import normalize as N
@@ -25,8 +25,8 @@ class VictimCountTests(SimpleTestCase):
         self.victims = [
             {'situation': 'Dead', 'type': 'People'},
             {'situation': 'Wounded', 'type': 'People'},
-            {'situation': 'Dead', 'type': 'Animals'},          # excluded
-            {'situation': 'Wounded', 'type': {'name': 'People'}},  # nested form
+            {'situation': 'Dead', 'type': 'Animals'},          # excluído
+            {'situation': 'Wounded', 'type': {'name': 'People'}},  # forma aninhada
         ]
 
     def test_counts_humans_only(self):

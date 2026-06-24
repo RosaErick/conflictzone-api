@@ -1,4 +1,4 @@
-"""Shared helpers for tests: build raw provider records without the network."""
+"""Helpers de teste: monta registros crus do provedor sem rede."""
 
 
 def make_item(external_id='11111111-1111-1111-1111-111111111111', **overrides):

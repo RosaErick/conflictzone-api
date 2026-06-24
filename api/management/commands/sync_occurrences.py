@@ -9,33 +9,33 @@ from api.services.ingest import run_sync
 
 class Command(BaseCommand):
     help = (
-        'Fetch occurrences from Fogo Cruzado and upsert them into the database.\n'
-        'No dates -> incremental sync of the last few days (for the hourly cron).\n'
-        'Explicit --initial-date/--final-date -> backfill a fixed window.'
+        'Busca ocorrências da Fogo Cruzado e faz upsert no banco.\n'
+        'Sem datas -> sync incremental dos últimos dias (para o cron de hora em hora).\n'
+        '--initial-date/--final-date -> backfill de uma janela fixa.'
     )
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--initial-date', dest='initial_date', default=None,
-            help='YYYY-MM-DD lower bound. Omit for incremental (last N days).',
+            help='Limite inferior YYYY-MM-DD. Omita para incremental (últimos N dias).',
         )
         parser.add_argument(
             '--final-date', dest='final_date', default=None,
-            help='YYYY-MM-DD upper bound (default: open-ended to now).',
+            help='Limite superior YYYY-MM-DD (padrão: aberto até agora).',
         )
         parser.add_argument(
             '--days', type=int, default=None,
-            help='Incremental window size in days when --initial-date is omitted '
-                 '(default: settings.INGESTION_DEFAULT_DAYS).',
+            help='Tamanho da janela incremental em dias quando --initial-date é omitido '
+                 '(padrão: settings.INGESTION_DEFAULT_DAYS).',
         )
 
     def handle(self, *args, **options):
         initial_date = options['initial_date']
         final_date = options['final_date']
 
-        # Incremental by default: no explicit start -> only the last few days.
-        # ponytail: a fixed recent window beats tracking a sync cursor at this
-        # volume; the upsert is idempotent so re-fetching the overlap is harmless.
+        # Incremental por padrão: sem início explícito -> só os últimos dias.
+        # ponytail: janela fixa recente bate guardar cursor de sync neste volume;
+        # o upsert é idempotente, então re-buscar a sobreposição é inofensivo.
         if initial_date is None:
             days = options['days']
             if days is None:

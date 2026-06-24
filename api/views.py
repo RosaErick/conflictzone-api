@@ -30,7 +30,7 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
-# --- ingestion freshness ---------------------------------------------------
+# --- frescor da ingestão ---------------------------------------------------
 
 def _last_ingestion():
     return (
@@ -42,9 +42,9 @@ def _last_ingestion():
 
 
 def _stale_response():
-    """503 when there is no usable ingestion yet or the data is too old.
+    """503 quando não há ingestão utilizável ou o dado está velho demais.
 
-    Honest failure: we never return an empty list to mask a broken pipeline.
+    Falha honesta: nunca devolvemos lista vazia mascarando um pipeline quebrado.
     """
     last = _last_ingestion()
     if last is None:
@@ -57,14 +57,14 @@ def _stale_response():
 
 
 def _parse_filters(request):
-    """Validate query params -> filters dict, or return (None, 400 Response)."""
+    """Valida os query params -> dict de filtros, ou retorna (None, Response 400)."""
     s = OccurrenceQuerySerializer(data=request.GET)
     if not s.is_valid():
         return None, Response(s.errors, status=400)
     return s.validated_data, None
 
 
-# --- health ----------------------------------------------------------------
+# --- saúde -----------------------------------------------------------------
 
 @health_schema
 @api_view(['GET'])
@@ -85,7 +85,7 @@ def health_view(request):
 @fogo_cruzado_health_schema
 @api_view(['GET'])
 def fogo_cruzado_health_view(request):
-    """Probe the external provider (operational check, not a data path)."""
+    """Sonda o provedor externo (checagem operacional, não caminho de dados)."""
     try:
         response = requests.post(
             'https://api-service.fogocruzado.org.br/api/v2/auth/login',
@@ -114,7 +114,7 @@ def fogo_cruzado_health_view(request):
                         status=503)
 
 
-# --- data ------------------------------------------------------------------
+# --- dados -----------------------------------------------------------------
 
 @occurrences_schema
 @api_view(['GET'])
@@ -149,7 +149,7 @@ def occurrences_view(request):
 @density_schema
 @api_view(['GET'])
 def density_view(request):
-    """Grid density (PostGIS) as GeoJSON — scales the map without shipping every point."""
+    """Densidade em grid (PostGIS) como GeoJSON — escala o mapa sem enviar todo ponto."""
     s = DensityQuerySerializer(data=request.GET)
     if not s.is_valid():
         return Response(s.errors, status=400)
@@ -174,14 +174,14 @@ def stats_view(request):
 @monthly_schema
 @api_view(['GET'])
 def monthly_view(request):
-    """Monthly breakdown — kept as an alias of timeseries(month) for the frontend."""
+    """Quebra mensal — alias de timeseries(month) para o frontend."""
     filters, err = _parse_filters(request)
     if err:
         return err
     if stale := _stale_response():
         return stale
     rows = selectors.timeseries(selectors.filtered_occurrences(filters), 'month')
-    # ponytail: same query, just rename `period` -> `month` (YYYY-MM) to keep the contract.
+    # ponytail: mesma query, só renomeia `period` -> `month` (YYYY-MM) p/ manter o contrato.
     data = [
         {'month': r['period'][:7], 'incidents': r['incidents'],
          'fatalities': r['fatalities'], 'injuries': r['injuries']}

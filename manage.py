@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Django's command-line utility for administrative tasks."""
+"""Utilitário de linha de comando do Django para tarefas administrativas."""
 import os
 import sys
 
@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 
 def main():
-    """Run administrative tasks."""
+    """Roda as tarefas administrativas."""
     load_dotenv()
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
     try:

@@ -1,7 +1,7 @@
-"""Pure transformation layer: raw Fogo Cruzado payload -> typed DTO.
+"""Camada de transformação pura: payload cru da Fogo Cruzado -> DTO tipado.
 
-Django-free on purpose so every transformation is unit-testable without a DB,
-GDAL, or the network. The ingestion command turns these DTOs into model rows.
+Sem Django de propósito, para cada transformação ser testável sem DB, GDAL ou rede.
+O comando de ingestão converte esses DTOs em linhas do modelo.
 """
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-# Victim.situation values that count as human casualties.
+# Valores de situation que contam como casualidade humana.
 DEAD = 'Dead'
 WOUNDED = 'Wounded'
 HUMAN = 'People'
@@ -18,7 +18,7 @@ HUMAN = 'People'
 @dataclass(frozen=True)
 class OccurrenceDTO:
     external_id: str
-    occurred_at: datetime          # tz-aware, UTC
+    occurred_at: datetime          # tz-aware, em UTC
     latitude: float | None
     longitude: float | None
     address: str
@@ -34,10 +34,10 @@ class OccurrenceDTO:
 
 
 def parse_datetime(value: str) -> datetime:
-    """Parse an ISO-8601 string to a tz-aware UTC datetime.
+    """Converte uma string ISO-8601 num datetime tz-aware em UTC.
 
-    Provider sends e.g. '2024-01-01T00:49:00.000Z'. A naive result is forbidden,
-    so we always attach/normalize to UTC.
+    O provedor manda ex. '2024-01-01T00:49:00.000Z'. Resultado naive é proibido,
+    então sempre anexamos/normalizamos para UTC.
     """
     if not value:
         raise ValueError('empty datetime')
@@ -55,9 +55,9 @@ def _victim_type(victim: dict) -> str | None:
 
 
 def count_victims(victims: list | None, situation: str) -> int:
-    """Count human victims (type == 'People') with the given situation.
+    """Conta vítimas humanas (type == 'People') com a situation dada.
 
-    The old code counted every victim including animals; humans only is correct.
+    O código antigo contava toda vítima, inclusive animais; só humanos é o correto.
     """
     if not victims:
         return 0
@@ -74,7 +74,7 @@ def get_main_reason(item: dict) -> str:
 
 
 def validate_coordinate(value, is_latitude: bool = True) -> float | None:
-    """Parse a coordinate string to a float in range, or None if invalid."""
+    """Converte uma coordenada (string) em float no range, ou None se inválida."""
     if value is None:
         return None
     try:
@@ -100,7 +100,7 @@ def _name(obj) -> str:
 
 
 def normalize_occurrence(item: dict) -> OccurrenceDTO:
-    """Raw provider record -> OccurrenceDTO. Raises KeyError if `id` is missing."""
+    """Registro cru do provedor -> OccurrenceDTO. Levanta KeyError se faltar `id`."""
     victims = item.get('victims') or []
     return OccurrenceDTO(
         external_id=item['id'],
@@ -121,21 +121,21 @@ def normalize_occurrence(item: dict) -> OccurrenceDTO:
 
 
 def _demo():
-    # ponytail: one runnable check covering the non-trivial transforms.
+    # ponytail: um check executável cobrindo as transformações não-triviais.
     dt = parse_datetime('2024-01-01T00:49:00.000Z')
     assert dt.tzinfo is not None and dt.utcoffset().total_seconds() == 0, dt
 
     victims = [
         {'situation': 'Dead', 'type': 'People'},
         {'situation': 'Wounded', 'type': 'People'},
-        {'situation': 'Dead', 'type': 'Animals'},          # not a human casualty
-        {'situation': 'Wounded', 'type': {'name': 'People'}},  # nested type form
+        {'situation': 'Dead', 'type': 'Animals'},          # não é casualidade humana
+        {'situation': 'Wounded', 'type': {'name': 'People'}},  # forma aninhada de type
     ]
     assert count_victims(victims, DEAD) == 1, count_victims(victims, DEAD)
     assert count_victims(victims, WOUNDED) == 2, count_victims(victims, WOUNDED)
 
     assert validate_coordinate('-22.89') == -22.89
-    assert validate_coordinate('999') is None       # out of lat range
+    assert validate_coordinate('999') is None       # fora do range de lat
     assert validate_coordinate('abc') is None
 
     item = {

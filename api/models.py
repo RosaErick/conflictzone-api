@@ -3,15 +3,15 @@ from django.db import models
 
 
 class Occurrence(models.Model):
-    """An occurrence ingested from Fogo Cruzado.
+    """Uma ocorrência ingerida da Fogo Cruzado.
 
-    Explicit, typed columns drive every query; `raw` keeps the original payload
-    for audit/reprocessing. `external_id` is the provider's UUID and the dedup key.
+    Colunas tipadas e explícitas guiam toda query; `raw` guarda o payload original
+    para auditoria/reprocesso. `external_id` é o UUID do provedor e a chave de dedup.
     """
 
     external_id = models.UUIDField(unique=True)
     occurred_at = models.DateTimeField(db_index=True)
-    # geography=True -> meters-based distance; PointField auto-creates a GiST index.
+    # geography=True -> distância em metros; PointField cria o índice GiST sozinho.
     location = gis_models.PointField(geography=True, srid=4326, null=True, blank=True)
     address = models.TextField(blank=True, default='')
     neighborhood = models.CharField(max_length=255, blank=True, default='')
@@ -19,8 +19,8 @@ class Occurrence(models.Model):
     main_reason = models.CharField(max_length=255, blank=True, default='')
     police_action = models.BooleanField(default=False)
     agent_presence = models.BooleanField(default=False)
-    # ponytail: derived counts of human victims (type=='People') cover current
-    # dashboards; add a normalized Victim table on the first per-victim filter.
+    # ponytail: contagens derivadas de vítimas humanas (type=='People') cobrem os
+    # dashboards atuais; criar tabela Victim normalizada no 1º filtro por vítima.
     fatalities = models.PositiveIntegerField(default=0)
     injuries = models.PositiveIntegerField(default=0)
     weight = models.FloatField(default=0)
@@ -45,7 +45,7 @@ class Occurrence(models.Model):
 
 
 class IngestionRun(models.Model):
-    """Audit record for one ingestion run — never let a job fail silently."""
+    """Registro de auditoria de uma execução da ingestão — nada de falha silenciosa."""
 
     SUCCESS = 'success'
     PARTIAL = 'partial'

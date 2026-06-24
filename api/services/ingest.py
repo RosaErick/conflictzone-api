@@ -1,8 +1,8 @@
-"""Ingestion orchestration: fetch -> normalize -> idempotent upsert -> audit.
+"""Orquestração da ingestão: busca -> normaliza -> upsert idempotente -> auditoria.
 
-The only place that bridges the isolated client/normalizer to Django models.
-Every run is recorded in IngestionRun; a mid-pagination failure keeps the data
-already written and is marked `partial`, never silent.
+Único ponto que liga o client/normalizer isolados aos models do Django. Todo run é
+registrado em IngestionRun; falha no meio da paginação mantém o que já foi gravado e
+marca `partial`, nunca silenciosa.
 """
 from __future__ import annotations
 
@@ -24,12 +24,12 @@ logger = logging.getLogger(__name__)
 def _to_point(dto: OccurrenceDTO) -> Point | None:
     if dto.latitude is None or dto.longitude is None:
         return None
-    # Point takes (x=lng, y=lat).
+    # Point recebe (x=lng, y=lat).
     return Point(dto.longitude, dto.latitude, srid=4326)
 
 
 def upsert_occurrence(dto: OccurrenceDTO) -> bool:
-    """Idempotent upsert keyed on external_id. Returns True if newly created."""
+    """Upsert idempotente por external_id. Retorna True se criou um novo registro."""
     _, created = Occurrence.objects.update_or_create(
         external_id=dto.external_id,
         defaults={
@@ -78,11 +78,11 @@ def run_sync(*, initial_date=None, final_date=None, client=None) -> IngestionRun
                 else:
                     updated += 1
     except FogoCruzadoError as exc:
-        # Got some pages then a page failed -> partial; nothing at all -> failed.
+        # Pegou páginas e uma falhou -> partial; nada -> failed.
         status = IngestionRun.PARTIAL if fetched else IngestionRun.FAILED
         error = str(exc)
         logger.error('ingestion %s: %s', status, exc)
-    except Exception as exc:  # noqa: BLE001 - record any failure, never swallow it
+    except Exception as exc:  # noqa: BLE001 - registra qualquer falha, nunca engole
         status = IngestionRun.FAILED
         error = str(exc)
         logger.exception('ingestion failed')

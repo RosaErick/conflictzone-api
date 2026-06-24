@@ -1,7 +1,7 @@
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 
-# Common query parameters for all occurrence endpoints
+# Query params comuns a todos os endpoints de ocorrência
 COMMON_PARAMETERS = [
     OpenApiParameter(
         name='initialdate',
@@ -73,7 +73,7 @@ PAGINATION_PARAMETERS = [
 ]
 
 
-# Response examples
+# Exemplos de resposta
 OCCURRENCE_RESPONSE_EXAMPLE = {
     'data': [
         {
@@ -133,7 +133,7 @@ FILTERS_RESPONSE_EXAMPLE = {
 }
 
 
-# Schema decorators
+# Decorators de schema
 occurrences_schema = extend_schema(
     summary='List occurrences',
     description='''

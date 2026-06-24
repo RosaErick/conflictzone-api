@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-conflictzone}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-conflictzone}
     ports:
-      # Bound to the host loopback only: reachable via SSH tunnel, never public.
+      # Ligado só ao loopback do host: acessível via túnel SSH, nunca público.
       - "127.0.0.1:5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data

@@ -1,6 +1,6 @@
 #!/bin/sh
-# Runs on every container start: apply migrations, gather static, then launch
-# whatever CMD was passed (gunicorn).
+# Roda a cada start do container: aplica migrations, coleta estáticos e então
+# executa o CMD passado (gunicorn).
 set -e
 
 echo "[entrypoint] applying migrations..."

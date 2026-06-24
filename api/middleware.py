@@ -5,10 +5,10 @@ logger = logging.getLogger('api.request')
 
 
 class RequestLogMiddleware:
-    """Log method, path, status and duration for every request.
+    """Loga método, rota, status e duração de cada request.
 
-    ponytail: a few lines of structured logging covers observability now;
-    reach for OpenTelemetry/metrics only when logs stop answering the question.
+    ponytail: poucas linhas de log estruturado cobrem a observabilidade agora;
+    partir para OpenTelemetry/métricas só quando o log deixar de responder.
     """
 
     def __init__(self, get_response):
