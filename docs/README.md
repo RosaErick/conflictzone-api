@@ -5,9 +5,14 @@ armada da [Fogo Cruzado](https://fogocruzado.org.br/), restrita ao **Rio de
 Janeiro**. A API não é mais um proxy: ela lê de um PostgreSQL+PostGIS próprio,
 populado por um job idempotente e auditável.
 
-> **Para agentes de IA:** comece por [`agents.md`](agents.md) — convenções,
-> doutrina ponytail, como rodar/testar e armadilhas conhecidas. Depois leia o
-> doc relevante à sua tarefa abaixo.
+> **Para agentes de IA:** as regras obrigatórias estão no [`CLAUDE.md`](../CLAUDE.md)
+> da raiz (carregado automaticamente). Convenções e armadilhas detalhadas estão em
+> `agents.md` (local/gitignored, se presente). Depois leia o doc relevante abaixo.
+
+> **📌 Política de documentação (obrigatória):** atualizar os docs faz parte de
+> toda tarefa que mexe neste repo — mudou comportamento, atualize o doc
+> correspondente (ver mapa abaixo). Doc desatualizado conta como bug. Detalhe em
+> [`CLAUDE.md`](../CLAUDE.md).
 
 ## Mapa da documentação
 
@@ -20,8 +25,8 @@ populado por um job idempotente e auditável.
 | [deployment.md](deployment.md) | Deploy na Oracle Cloud (free tier) + Postgres + cron |
 | [decisions.md](decisions.md) | Decisões de arquitetura (ADRs) e questões debatidas, com o porquê |
 | [roadmap.md](roadmap.md) | O que foi feito, o que não foi, e os atalhos deliberados com gatilho |
-| [agents.md](agents.md) | Guia para agentes/devs que vão continuar o projeto |
-| [reference/](reference/) | Fontes originais: contrato de engenharia e o plano de implementação |
+| `agents.md` | Guia detalhado para agentes (local/gitignored — regras obrigatórias no `CLAUDE.md`) |
+| `reference/` | Fontes originais: contrato de engenharia e plano (local/gitignored) |
 
 ## Princípios (não-negociáveis)
 
