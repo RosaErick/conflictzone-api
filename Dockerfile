@@ -7,6 +7,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# GeoDjango needs GDAL/GEOS/PROJ at runtime; postgresql-client is handy for ops.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        binutils libproj-dev gdal-bin postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Python deps first for better layer caching. gunicorn is the prod server.
 COPY requirements.txt .
 RUN pip install -r requirements.txt gunicorn
