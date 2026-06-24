@@ -173,7 +173,8 @@ Rodar manualmente (da raiz do projeto):
 ./scripts/backup.sh            # gera/atualiza cz-latest.dump
 ```
 
-Agendar (diário às 04:00) — `crontab -e`:
+**Agendamento é opcional** — o script roda sob demanda. Quando/se quiser backup
+diário automático, adicione esta linha ao `crontab -e` (diário às 04:00):
 ```cron
 0 4 * * * cd ~/conflictzone-api && ./scripts/backup.sh >> /var/log/cz-backup.log 2>&1
 ```

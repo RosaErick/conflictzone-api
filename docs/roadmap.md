@@ -21,9 +21,10 @@
   via túnel SSH (pgAdmin/DBeaver).
 - [x] **Backfill histórico 2020–2026.** Carga fatiada por mês (janelas pequenas
   contornam o corte de resposta do upstream em `take` alto — ver abaixo).
-- [x] **Backup local automático.** [`scripts/backup.sh`](../scripts/backup.sh):
+- [x] **Script de backup local pronto.** [`scripts/backup.sh`](../scripts/backup.sh):
   `pg_dump` rolável (temp → valida tamanho → move atômico; nunca sobrescreve um
-  backup bom com um ruim), agendado por cron.
+  backup bom com um ruim). Roda sob demanda; **cron diário ainda não agendado**
+  (opcional — comando documentado em [deployment.md](deployment.md#8-backup-automático-do-banco)).
 
 ## Não feito / em aberto (decisões pendentes do dono)
 
