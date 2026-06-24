@@ -1,272 +1,211 @@
-from collections import defaultdict
+import logging
+from datetime import timedelta
+
 import requests
 from django.conf import settings
+from django.utils import timezone
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .services.fogo_cruzado import FogoCruzadoService
+from . import selectors
+from .models import IngestionRun
 from .schemas import (
-    health_schema,
-    fogo_cruzado_health_schema,
-    occurrences_schema,
-    stats_schema,
-    monthly_schema,
     by_city_schema,
     filters_schema,
+    fogo_cruzado_health_schema,
+    health_schema,
+    monthly_schema,
+    occurrences_schema,
+    stats_schema,
+    timeseries_schema,
+)
+from .serializers import (
+    OccurrenceQuerySerializer,
+    OccurrenceSerializer,
+    PaginationQuerySerializer,
 )
 
-
-def parse_bool(value):
-    """Parse boolean from query string."""
-    if value is None:
-        return None
-    return value.lower() in ('true', '1', 'yes')
+logger = logging.getLogger(__name__)
 
 
-def parse_int(value, default=None):
-    """Parse integer from query string."""
-    if value is None:
-        return default
-    try:
-        return int(value)
-    except ValueError:
-        return default
+# --- ingestion freshness ---------------------------------------------------
+
+def _last_ingestion():
+    return (
+        IngestionRun.objects.exclude(finished_at__isnull=True)
+        .filter(status__in=[IngestionRun.SUCCESS, IngestionRun.PARTIAL])
+        .order_by('-finished_at')
+        .first()
+    )
 
 
-def get_filters(request):
-    """Extract filters from request query parameters."""
-    return {
-        'initialdate': request.GET.get('initialdate'),
-        'finaldate': request.GET.get('finaldate'),
-        'mainReason': request.GET.get('mainReason'),
-        'typeOccurrence': request.GET.get('typeOccurrence'),
-        # 'type' may be repeated (multi-select); getlist returns [] when absent.
-        'type': request.GET.getlist('type') or None,
-        'city': request.GET.get('city'),
-        'policePresent': parse_bool(request.GET.get('policePresent')),
-        'victimStatus': request.GET.get('victimStatus'),
-    }
+def _stale_response():
+    """503 when there is no usable ingestion yet or the data is too old.
+
+    Honest failure: we never return an empty list to mask a broken pipeline.
+    """
+    last = _last_ingestion()
+    if last is None:
+        return Response({'error': 'no successful ingestion yet; data unavailable'}, status=503)
+    age = timezone.now() - last.finished_at
+    if age > timedelta(hours=settings.INGESTION_MAX_AGE_HOURS):
+        hours = int(age.total_seconds() // 3600)
+        return Response({'error': f'data is stale (last ingestion {hours}h ago)'}, status=503)
+    return None
 
 
-def get_pagination(request):
-    """Extract pagination from request query parameters."""
-    page = parse_int(request.GET.get('page'), 1)
-    take = parse_int(request.GET.get('take'), 100)
-    # Limit take to a reasonable max. The whole dataset is already fetched and
-    # cached server-side, so a larger page lets the map/table cover a full month.
-    take = min(take, 5000)
-    return page, take
+def _parse_filters(request):
+    """Validate query params -> filters dict, or return (None, 400 Response)."""
+    s = OccurrenceQuerySerializer(data=request.GET)
+    if not s.is_valid():
+        return None, Response(s.errors, status=400)
+    return s.validated_data, None
 
 
-def paginate(data, page, take):
-    """Apply pagination to data list."""
-    start = (page - 1) * take
-    end = start + take
-    return data[start:end], len(data)
-
+# --- health ----------------------------------------------------------------
 
 @health_schema
 @api_view(['GET'])
 def health_view(request):
-    return Response("Health Check! Ok!")
+    last = _last_ingestion()
+    body = {'status': 'ok', 'lastIngestion': None}
+    if last:
+        age = timezone.now() - last.finished_at
+        body['lastIngestion'] = {
+            'status': last.status,
+            'finishedAt': last.finished_at,
+            'ageHours': round(age.total_seconds() / 3600, 1),
+            'fetched': last.fetched,
+        }
+    return Response(body)
 
 
 @fogo_cruzado_health_schema
 @api_view(['GET'])
 def fogo_cruzado_health_view(request):
-    """Check if the Fogo Cruzado external API is available."""
+    """Probe the external provider (operational check, not a data path)."""
     try:
-        url = "https://api-service.fogocruzado.org.br/api/v2/auth/login"
-        credentials = {
-            "email": settings.FOGO_CRUZADO_EMAIL,
-            "password": settings.FOGO_CRUZADO_PASSWORD
-        }
-        response = requests.post(url, json=credentials, timeout=10)
-
+        response = requests.post(
+            'https://api-service.fogocruzado.org.br/api/v2/auth/login',
+            json={
+                'email': settings.FOGO_CRUZADO_EMAIL,
+                'password': settings.FOGO_CRUZADO_PASSWORD,
+            },
+            timeout=10,
+        )
         if response.status_code in (200, 201):
             return Response({
                 'status': 'online',
                 'message': 'Fogo Cruzado API is operational',
-                'statusCode': response.status_code
+                'statusCode': response.status_code,
             })
-        else:
-            return Response({
-                'status': 'error',
-                'message': f'Fogo Cruzado API returned status {response.status_code}',
-                'statusCode': response.status_code
-            }, status=503)
-
-    except requests.exceptions.Timeout:
-        return Response({
-            'status': 'offline',
-            'message': 'Fogo Cruzado API request timed out',
-            'statusCode': None
-        }, status=503)
-    except requests.exceptions.ConnectionError:
-        return Response({
-            'status': 'offline',
-            'message': 'Could not connect to Fogo Cruzado API',
-            'statusCode': None
-        }, status=503)
-    except Exception as e:
         return Response({
             'status': 'error',
-            'message': str(e),
-            'statusCode': None
+            'message': f'Fogo Cruzado API returned status {response.status_code}',
+            'statusCode': response.status_code,
         }, status=503)
+    except requests.exceptions.Timeout:
+        return Response({'status': 'offline', 'message': 'request timed out', 'statusCode': None},
+                        status=503)
+    except requests.exceptions.ConnectionError:
+        return Response({'status': 'offline', 'message': 'could not connect', 'statusCode': None},
+                        status=503)
 
+
+# --- data ------------------------------------------------------------------
 
 @occurrences_schema
 @api_view(['GET'])
 def occurrences_view(request):
-    try:
-        filters = get_filters(request)
-        page, take = get_pagination(request)
-        processed_data = FogoCruzadoService.update_occurrences(filters=filters)
+    filters, err = _parse_filters(request)
+    if err:
+        return err
+    page_s = PaginationQuerySerializer(data=request.GET)
+    if not page_s.is_valid():
+        return Response(page_s.errors, status=400)
+    if stale := _stale_response():
+        return stale
 
-        # Build response with flattened structure
-        data = []
-        for occurrence in processed_data:
-            occurrence_dict = {
-                'id': occurrence.occurrence_id,
-                'lat': occurrence.latitude,
-                'lng': occurrence.longitude,
-                'address': occurrence.address,
-                'date': occurrence.date,
-                'type': occurrence.occurrence_type,
-                'fatalities': occurrence.fatalities,
-                'injuries': occurrence.injuries,
-                'policePresent': occurrence.police_present,
-                'neighborhood': occurrence.neighborhood_name,
-                'city': occurrence.city_name,
-                'weight': occurrence.weight,
-            }
-            data.append(occurrence_dict)
+    page = page_s.validated_data['page']
+    take = page_s.validated_data['take']
+    qs = selectors.filtered_occurrences(filters).order_by('-occurred_at')
+    total = qs.count()
+    start = (page - 1) * take
+    items = qs[start:start + take]
 
-        # Apply pagination
-        paginated_data, total = paginate(data, page, take)
-
-        return Response({
-            'data': paginated_data,
-            'pagination': {
-                'page': page,
-                'take': take,
-                'total': total,
-                'pages': (total + take - 1) // take
-            }
-        })
-    except Exception as e:
-        return Response({'error': str(e)}, status=500)
+    return Response({
+        'data': OccurrenceSerializer(items, many=True).data,
+        'pagination': {
+            'page': page,
+            'take': take,
+            'total': total,
+            'pages': (total + take - 1) // take if take else 0,
+        },
+    })
 
 
 @stats_schema
 @api_view(['GET'])
 def stats_view(request):
-    """Return aggregated statistics for occurrences."""
-    try:
-        filters = get_filters(request)
-        processed_data = FogoCruzadoService.update_occurrences(filters=filters)
-
-        total_fatalities = 0
-        total_injuries = 0
-        police_involved = 0
-
-        for occurrence in processed_data:
-            total_fatalities += occurrence.fatalities
-            total_injuries += occurrence.injuries
-            if occurrence.police_present:
-                police_involved += 1
-
-        total = len(processed_data)
-        police_percentage = round((police_involved / total * 100)) if total > 0 else 0
-
-        return Response({
-            'totalIncidents': total,
-            'totalFatalities': total_fatalities,
-            'totalInjuries': total_injuries,
-            'policeInvolvedCount': police_involved,
-            'policeInvolvedPercentage': police_percentage,
-        })
-    except Exception as e:
-        return Response({'error': str(e)}, status=500)
+    filters, err = _parse_filters(request)
+    if err:
+        return err
+    if stale := _stale_response():
+        return stale
+    return Response(selectors.stats(selectors.filtered_occurrences(filters)))
 
 
 @monthly_schema
 @api_view(['GET'])
 def monthly_view(request):
-    """Return monthly breakdown of occurrences."""
-    try:
-        filters = get_filters(request)
-        processed_data = FogoCruzadoService.update_occurrences(filters=filters)
+    """Monthly breakdown — kept as an alias of timeseries(month) for the frontend."""
+    filters, err = _parse_filters(request)
+    if err:
+        return err
+    if stale := _stale_response():
+        return stale
+    rows = selectors.timeseries(selectors.filtered_occurrences(filters), 'month')
+    # ponytail: same query, just rename `period` -> `month` (YYYY-MM) to keep the contract.
+    data = [
+        {'month': r['period'][:7], 'incidents': r['incidents'],
+         'fatalities': r['fatalities'], 'injuries': r['injuries']}
+        for r in rows
+    ]
+    return Response({'data': data})
 
-        monthly_data = defaultdict(lambda: {'incidents': 0, 'fatalities': 0, 'injuries': 0})
 
-        for occurrence in processed_data:
-            month_key = occurrence.date.strftime('%Y-%m')
-            monthly_data[month_key]['incidents'] += 1
-            monthly_data[month_key]['fatalities'] += occurrence.fatalities
-            monthly_data[month_key]['injuries'] += occurrence.injuries
-
-        # Convert to sorted list
-        monthly_list = [
-            {'month': month, **data}
-            for month, data in sorted(monthly_data.items())
-        ]
-
-        return Response({'data': monthly_list})
-    except Exception as e:
-        return Response({'error': str(e)}, status=500)
+@timeseries_schema
+@api_view(['GET'])
+def timeseries_view(request):
+    filters, err = _parse_filters(request)
+    if err:
+        return err
+    granularity = request.GET.get('granularity', 'day')
+    if granularity not in ('day', 'week', 'month'):
+        return Response({'granularity': 'must be one of day, week, month'}, status=400)
+    if stale := _stale_response():
+        return stale
+    rows = selectors.timeseries(selectors.filtered_occurrences(filters), granularity)
+    return Response({'granularity': granularity, 'data': rows})
 
 
 @by_city_schema
 @api_view(['GET'])
 def by_city_view(request):
-    """Return breakdown of occurrences by city."""
-    try:
-        filters = get_filters(request)
-        processed_data = FogoCruzadoService.update_occurrences(filters=filters)
-
-        city_data = defaultdict(lambda: {'incidents': 0, 'fatalities': 0})
-
-        for occurrence in processed_data:
-            city_name = occurrence.city_name or 'Unknown'
-            city_data[city_name]['incidents'] += 1
-            city_data[city_name]['fatalities'] += occurrence.fatalities
-
-        # Convert to sorted list by incidents (descending)
-        city_list = [
-            {'city': city, **data}
-            for city, data in sorted(city_data.items(), key=lambda x: x[1]['incidents'], reverse=True)
-        ]
-
-        return Response({'data': city_list})
-    except Exception as e:
-        return Response({'error': str(e)}, status=500)
+    filters, err = _parse_filters(request)
+    if err:
+        return err
+    if stale := _stale_response():
+        return stale
+    return Response({'data': selectors.breakdown(selectors.filtered_occurrences(filters), 'city')})
 
 
 @filters_schema
 @api_view(['GET'])
 def filters_view(request):
-    """Return available filter options for dropdowns."""
-    try:
-        # Fetch all data without filters to get all options
-        processed_data = FogoCruzadoService.update_occurrences(filters={
-            'initialdate': request.GET.get('initialdate'),
-            'finaldate': request.GET.get('finaldate'),
-        })
-
-        types = set()
-        cities = set()
-
-        for occurrence in processed_data:
-            if occurrence.occurrence_type:
-                types.add(occurrence.occurrence_type)
-            if occurrence.city_name:
-                cities.add(occurrence.city_name)
-
-        return Response({
-            'types': sorted(list(types)),
-            'cities': sorted(list(cities)),
-        })
-    except Exception as e:
-        return Response({'error': str(e)}, status=500)
+    filters, err = _parse_filters(request)
+    if err:
+        return err
+    if stale := _stale_response():
+        return stale
+    return Response(selectors.filter_options(selectors.filtered_occurrences(filters)))

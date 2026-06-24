@@ -1,30 +1,67 @@
-import json
+from django.contrib.gis.db import models as gis_models
 from django.db import models
-from django.core.serializers.json import DjangoJSONEncoder
+
 
 class Occurrence(models.Model):
-    occurrence_id = models.CharField(max_length=255, unique=True)
-    latitude = models.FloatField()
-    longitude = models.FloatField()
-    address = models.TextField()
-    date = models.DateTimeField()
-    police_action = models.BooleanField()
-    agent_presence = models.BooleanField()
-    context_info = models.TextField(blank=True, null=True)
-    victims = models.TextField(blank=True, null=True)
-    weight = models.FloatField(blank=True, null=True)
-    neighborhood = models.TextField(blank=True, null=True)
-    city = models.TextField(blank=True, null=True)
+    """An occurrence ingested from Fogo Cruzado.
 
-    def save(self, *args, **kwargs):
-        if isinstance(self.context_info, dict):
-            self.context_info = json.dumps(self.context_info, cls=DjangoJSONEncoder)
-        if isinstance(self.victims, list):
-            self.victims = json.dumps(self.victims, cls=DjangoJSONEncoder)
-        super().save(*args, **kwargs)
+    Explicit, typed columns drive every query; `raw` keeps the original payload
+    for audit/reprocessing. `external_id` is the provider's UUID and the dedup key.
+    """
+
+    external_id = models.UUIDField(unique=True)
+    occurred_at = models.DateTimeField(db_index=True)
+    # geography=True -> meters-based distance; PointField auto-creates a GiST index.
+    location = gis_models.PointField(geography=True, srid=4326, null=True, blank=True)
+    address = models.TextField(blank=True, default='')
+    neighborhood = models.CharField(max_length=255, blank=True, default='')
+    city = models.CharField(max_length=255, blank=True, default='')
+    main_reason = models.CharField(max_length=255, blank=True, default='')
+    police_action = models.BooleanField(default=False)
+    agent_presence = models.BooleanField(default=False)
+    # ponytail: derived counts of human victims (type=='People') cover current
+    # dashboards; add a normalized Victim table on the first per-victim filter.
+    fatalities = models.PositiveIntegerField(default=0)
+    injuries = models.PositiveIntegerField(default=0)
+    weight = models.FloatField(default=0)
+    raw = models.JSONField(default=dict)
+    ingested_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Occurrence'
+        verbose_name_plural = 'Occurrences'
+        indexes = [
+            models.Index(fields=['city']),
+            models.Index(fields=['main_reason']),
+            models.Index(fields=['neighborhood']),
+        ]
+
+    @property
+    def police_present(self):
+        return self.police_action or self.agent_presence
 
     def __str__(self):
-        return f"{self.address} on {self.date.strftime('%Y-%m-%d')}"
+        return f'{self.address or self.external_id} on {self.occurred_at:%Y-%m-%d}'
+
+
+class IngestionRun(models.Model):
+    """Audit record for one ingestion run — never let a job fail silently."""
+
+    SUCCESS = 'success'
+    PARTIAL = 'partial'
+    FAILED = 'failed'
+    STATUS_CHOICES = [(SUCCESS, SUCCESS), (PARTIAL, PARTIAL), (FAILED, FAILED)]
+
+    started_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=FAILED)
+    fetched = models.PositiveIntegerField(default=0)
+    created = models.PositiveIntegerField(default=0)
+    updated = models.PositiveIntegerField(default=0)
+    error = models.TextField(blank=True, default='')
+
     class Meta:
-        verbose_name = "Occurrence"
-        verbose_name_plural = "Occurrences"
+        ordering = ['-started_at']
+
+    def __str__(self):
+        return f'IngestionRun {self.pk} {self.status} ({self.started_at:%Y-%m-%d %H:%M})'

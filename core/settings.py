@@ -10,26 +10,31 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
-from pathlib import Path
 import os
+from pathlib import Path
+
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
+def env_bool(name, default=False):
+    return os.getenv(name, str(default)).strip().lower() in ('1', 'true', 'yes')
 
-# SECURITY WARNING: keep the secret key used in production secret!
-# Falls back to the original insecure key for local dev; set DJANGO_SECRET_KEY in prod.
-SECRET_KEY = os.getenv(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-)gwbe(_t3ixi)p4j)^2x2b2^$h)f4ilxwhn_lzzz9i$%aawy36',
-)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Defaults to True for local dev; set DJANGO_DEBUG=False in prod.
-DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
+DEBUG = env_bool('DJANGO_DEBUG', True)
+
+# SECURITY WARNING: keep the secret key used in production secret!
+# A dev-only fallback is allowed only when DEBUG=True; prod must set the key.
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-dev-only-do-not-use-in-production'
+    else:
+        raise ImproperlyConfigured('DJANGO_SECRET_KEY must be set when DEBUG=False')
 
 # Comma-separated list via env (e.g. "1.2.3.4,api.example.com"); merged with defaults.
 _default_hosts = ['127.0.0.1', 'localhost', '.vercel.app']
@@ -46,6 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
     'rest_framework',
     'drf_spectacular',
     'corsheaders',
@@ -60,7 +66,8 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'corsheaders.middleware.CorsMiddleware'
+    'corsheaders.middleware.CorsMiddleware',
+    'api.middleware.RequestLogMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -84,27 +91,35 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.app'
 FOGO_CRUZADO_EMAIL = os.getenv('FOGO_CRUZADO_EMAIL')
 FOGO_CRUZADO_PASSWORD = os.getenv('FOGO_CRUZADO_PASSWORD')
+# Rio de Janeiro state UUID (was hardcoded in the service); override via env.
+FOGO_CRUZADO_STATE_ID = os.getenv(
+    'FOGO_CRUZADO_STATE_ID', 'b112ffbe-17b3-4ad0-8f2a-2038745d1d14'
+)
+# Max age of the last successful ingestion before /health reports degraded.
+INGESTION_MAX_AGE_HOURS = int(os.getenv('INGESTION_MAX_AGE_HOURS', '6'))
+# Default incremental window (in days) when sync_occurrences runs without dates.
+INGESTION_DEFAULT_DAYS = int(os.getenv('INGESTION_DEFAULT_DAYS', '3'))
 
 
-# Configure CORS
-CORS_ALLOW_ALL_ORIGINS = True 
+# CORS: explicit allowlist via env in prod; wide open only in local dev.
+# ponytail: env list covers it; tighten by setting CORS_ALLOWED_ORIGINS in prod.
+_cors_origins = [o.strip() for o in os.getenv('CORS_ALLOWED_ORIGINS', '').split(',') if o.strip()]
+if _cors_origins:
+    CORS_ALLOWED_ORIGINS = _cors_origins
+else:
+    CORS_ALLOW_ALL_ORIGINS = DEBUG
 
-CORS_ORIGIN_WHITELIST = [
-     'http://localhost:3000',
-]
 
-
-# Database
-# https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-# SQLITE_DIR lets the container point the DB at a mounted volume so it persists
-# across deploys; defaults to the project root for local dev.
-SQLITE_DIR = Path(os.getenv('SQLITE_DIR', BASE_DIR))
-
+# Database — PostgreSQL + PostGIS is the source of truth (geospatial is non-negotiable).
+# All connection params come from the environment; no secrets in code.
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': SQLITE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.contrib.gis.db.backends.postgis',
+        'NAME': os.getenv('POSTGRES_DB', 'conflictzone'),
+        'USER': os.getenv('POSTGRES_USER', 'conflictzone'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'conflictzone'),
+        'HOST': os.getenv('POSTGRES_HOST', 'localhost'),
+        'PORT': os.getenv('POSTGRES_PORT', '5432'),
     }
 }
 
@@ -133,7 +148,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
+# Store everything UTC tz-aware; group analytics series in local time (below).
 TIME_ZONE = 'UTC'
+
+# Timezone used to bucket day/week/month series so the "day" matches the user's.
+LOCAL_TZ = os.getenv('ANALYTICS_TZ', 'America/Sao_Paulo')
 
 USE_I18N = True
 
@@ -164,5 +183,18 @@ SPECTACULAR_SETTINGS = {
     'DESCRIPTION': 'API for conflict/violence occurrence data from Fogo Cruzado',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
+}
+
+# Logging: single stdout handler, container-friendly. Replaces all print().
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {'format': '%(asctime)s %(levelname)s %(name)s %(message)s'},
+    },
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'formatter': 'simple'},
+    },
+    'root': {'handlers': ['console'], 'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO')},
 }
 

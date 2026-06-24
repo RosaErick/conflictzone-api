@@ -1,6 +1,5 @@
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
-
+from drf_spectacular.utils import OpenApiExample, OpenApiParameter, extend_schema
 
 # Common query parameters for all occurrence endpoints
 COMMON_PARAMETERS = [
@@ -254,6 +253,52 @@ Returns a monthly breakdown of occurrences for trend charts.
     },
     examples=[OpenApiExample('Success', value=MONTHLY_RESPONSE_EXAMPLE, response_only=True)],
     tags=['Statistics']
+)
+
+
+timeseries_schema = extend_schema(
+    summary='Get occurrence time series',
+    description='''
+Returns a time series of occurrences bucketed in local time (America/Sao_Paulo).
+
+**Query:** `granularity` = `day` | `week` | `month` (default `day`).
+
+**Response:** `data` array with `period` (ISO date of the bucket start),
+`incidents`, `fatalities`, `injuries`.
+    ''',
+    parameters=COMMON_PARAMETERS + [
+        OpenApiParameter(
+            name='granularity',
+            type=OpenApiTypes.STR,
+            location=OpenApiParameter.QUERY,
+            description='Bucket size: day, week, or month (default: day)',
+            enum=['day', 'week', 'month'],
+            required=False,
+        ),
+    ],
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'granularity': {'type': 'string'},
+                'data': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'period': {'type': 'string', 'format': 'date'},
+                            'incidents': {'type': 'integer'},
+                            'fatalities': {'type': 'integer'},
+                            'injuries': {'type': 'integer'},
+                        },
+                    },
+                },
+            },
+        },
+        400: {'type': 'object'},
+        503: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+    },
+    tags=['Statistics'],
 )
 
 
