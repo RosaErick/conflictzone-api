@@ -95,8 +95,11 @@ FOGO_CRUZADO_PASSWORD = os.getenv('FOGO_CRUZADO_PASSWORD')
 FOGO_CRUZADO_STATE_ID = os.getenv(
     'FOGO_CRUZADO_STATE_ID', 'b112ffbe-17b3-4ad0-8f2a-2038745d1d14'
 )
-# Max age of the last successful ingestion before /health reports degraded.
-INGESTION_MAX_AGE_HOURS = int(os.getenv('INGESTION_MAX_AGE_HOURS', '6'))
+# Max age of the last successful ingestion before /health and data endpoints
+# report 503. Tuned to the current ~3-day manual ingestion cadence (3 days +
+# 1 of slack); the gate then only catches "never ingested" or "long abandoned".
+# Lower it back toward the incremental window once an automated cron is running.
+INGESTION_MAX_AGE_HOURS = int(os.getenv('INGESTION_MAX_AGE_HOURS', '96'))
 # Default incremental window (in days) when sync_occurrences runs without dates.
 INGESTION_DEFAULT_DAYS = int(os.getenv('INGESTION_DEFAULT_DAYS', '3'))
 

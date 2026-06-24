@@ -144,17 +144,25 @@ for y in 2020 2021 2022 2023 2024 2025; do
 done
 ```
 
-**b) Cron incremental (1x/hora)** — sem datas, o command sincroniza só os
-**últimos 3 dias** (`INGESTION_DEFAULT_DAYS`); o upsert idempotente cobre
-sobreposições e atrasos da fonte:
+**b) Incremental (manual, a cada ~3 dias por enquanto)** — sem datas, o command
+sincroniza só os **últimos 3 dias** (`INGESTION_DEFAULT_DAYS`); o upsert
+idempotente cobre sobreposições e atrasos da fonte. Por isso o teto de frescor
+`INGESTION_MAX_AGE_HOURS` está em **96h** (ver [decisions.md](decisions.md#adr-010)):
 
 ```sh
-crontab -e
-# Sincroniza os últimos 3 dias toda hora; ajuste o caminho do projeto.
-0 * * * * cd /home/ubuntu/conflictzone-api && /usr/bin/docker compose run --rm web \
-  python manage.py sync_occurrences >> /var/log/cz-ingest.log 2>&1
+docker compose run --rm web python manage.py sync_occurrences
 ```
 
+> **Cron automático é upgrade adiado.** Quando quiser automatizar, um cron do SO
+> resolve sem Celery/Redis — e aí **baixe `INGESTION_MAX_AGE_HOURS`** de volta
+> para perto da janela incremental. Exemplo (1x/hora):
+>
+> ```sh
+> crontab -e
+> 0 * * * * cd /home/ubuntu/conflictzone-api && /usr/bin/docker compose run --rm web \
+>   python manage.py sync_occurrences >> /var/log/cz-ingest.log 2>&1
+> ```
+>
 > ponytail: cron do SO + management command cobre o agendamento sem Celery/Redis,
 > e uma **janela fixa recente** evita guardar cursor de sincronização. Migrar para
 > **Celery beat** só quando precisar de retry automático/concorrência. O

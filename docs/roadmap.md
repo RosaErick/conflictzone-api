@@ -46,6 +46,7 @@
 
 | Atalho | Teto atual | Gatilho de upgrade |
 |---|---|---|
+| Ingestão **manual** a cada ~3 dias (sem cron automático) | depende de alguém rodar; teto de frescor `INGESTION_MAX_AGE_HOURS` afrouxado p/ 96h (ver [ADR-010](decisions.md#adr-010)) | automatizar com cron do SO → e baixar o teto de volta p/ perto da janela incremental |
 | Cron + management command (não Celery) | sem retry/concorrência | retry/concorrência/agendamento-no-app → Celery beat |
 | Sem cache de agregação | recomputa toda request (~8 ms) | profiler mostrar quente → cache DB-backend → Redis |
 | Janela fixa de 3 dias (não cursor) | re-busca a sobreposição | muitos dados/dia → guardar último `occurred_at` |

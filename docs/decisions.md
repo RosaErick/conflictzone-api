@@ -118,3 +118,24 @@ como mortos/feridos.
 
 **Decisão.** Contar só `type == 'People'`. Corrige uma superestimativa real de
 casualidades. Coberto por teste (`test_normalize.py::VictimCountTests`).
+
+---
+
+## ADR-010 — Frescor (staleness) alinhado à cadência de ingestão
+
+**Contexto.** A ingestão é, **por enquanto, manual e rodada a cada ~3 dias** (sem
+cron automático ativo). O teto de frescor `INGESTION_MAX_AGE_HOURS` estava em
+**6h** — valor pensado para um cron de 1x/hora que não existe. Com isso, todo
+endpoint de dados respondia **503 "data is stale"** quase sempre, e o dashboard
+renderizava tudo zerado mesmo com o banco populado (backfill 2020–2026).
+
+**Decisão.** Subir o default para **96h** (3 dias da janela incremental + 1 de
+folga). A regra de "falha honesta" continua, mas calibrada à realidade: o 503
+passa a sinalizar **"nunca houve ingestão"** ou **"abandonado demais"**, não
+"passaram algumas horas". Configurável por env; sem mudança na lógica de
+`_stale_response`.
+
+**Porquê.** O valor do portão é distinguir pipeline quebrado/ausente de dado
+servível — não policiar minutos. Um teto abaixo da cadência real só gera 503
+espúrio. **Gatilho de reversão:** ao automatizar a ingestão (cron do SO), baixar
+`INGESTION_MAX_AGE_HOURS` de volta para perto de `INGESTION_DEFAULT_DAYS`.
