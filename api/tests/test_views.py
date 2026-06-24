@@ -1,4 +1,4 @@
-"""Endpoint contract tests: validation (400), staleness (503), happy path (200)."""
+"""Testes de contrato dos endpoints: validação (400), defasagem (503), caminho feliz (200)."""
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -49,7 +49,7 @@ class ValidationTests(TestCase):
 
 class StalenessTests(TestCase):
     def test_no_ingestion_is_503(self):
-        make_occ()  # data exists but pipeline never ran successfully
+        make_occ()  # há dado, mas o pipeline nunca rodou com sucesso
         self.assertEqual(self.client.get('/occurrences/').status_code, 503)
 
     def test_stale_ingestion_is_503(self):

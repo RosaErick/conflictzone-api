@@ -1,11 +1,4 @@
-"""
-WSGI config for django_report project.
-
-It exposes the WSGI callable as a module-level variable named ``application``.
-
-For more information on this file, see
-https://docs.djangoproject.com/en/4.2/howto/deployment/wsgi/
-"""
+"""Config WSGI — expõe o callable ``app`` no nível do módulo (usado pelo gunicorn)."""
 
 import os
 

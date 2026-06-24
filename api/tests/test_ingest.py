@@ -1,4 +1,4 @@
-"""Ingestion tests: idempotent upsert + audited run, no network (fake client)."""
+"""Testes de ingestão: upsert idempotente + run auditado, sem rede (fake client)."""
 from django.test import TestCase
 
 from api.models import IngestionRun, Occurrence
@@ -17,7 +17,7 @@ class FakeClient:
 
 
 class FailingClient:
-    """Yields one page, then fails — simulates an upstream 502 mid-pagination."""
+    """Gera uma página e falha — simula um 502 do upstream no meio da paginação."""
 
     def __init__(self, page):
         self.page = page
@@ -30,8 +30,8 @@ class FailingClient:
 class UpsertTests(TestCase):
     def test_upsert_is_idempotent(self):
         dto = normalize_occurrence(make_item())
-        self.assertTrue(upsert_occurrence(dto))   # created
-        self.assertFalse(upsert_occurrence(dto))  # updated, not duplicated
+        self.assertTrue(upsert_occurrence(dto))   # criou
+        self.assertFalse(upsert_occurrence(dto))  # atualizou, não duplicou
         self.assertEqual(Occurrence.objects.count(), 1)
 
     def test_upsert_refreshes_fields(self):
@@ -57,12 +57,12 @@ class RunSyncTests(TestCase):
         self.assertEqual(run.status, IngestionRun.PARTIAL)
         self.assertEqual(run.created, 1)
         self.assertTrue(run.error)
-        self.assertEqual(Occurrence.objects.count(), 1)  # not discarded
+        self.assertEqual(Occurrence.objects.count(), 1)  # não descartado
 
     def test_malformed_record_is_skipped_not_fatal(self):
         good = make_item('d' * 8 + '-1111-1111-1111-111111111111')
         bad = make_item('e' * 8 + '-1111-1111-1111-111111111111')
-        del bad['id']  # KeyError in normalize -> skipped
+        del bad['id']  # KeyError no normalize -> pulado
         run = run_sync(client=FakeClient([[bad, good]]))
         self.assertEqual(run.status, IngestionRun.SUCCESS)
         self.assertEqual(run.fetched, 1)

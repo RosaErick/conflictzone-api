@@ -1,7 +1,7 @@
-"""DRF serializers: validate query params at the boundary, shape responses.
+"""Serializers DRF: validam os query params na fronteira e moldam a resposta.
 
-Query serializers return 400 on bad input (never silently ignore it). The
-response serializer pins the exact field contract the frontend already consumes.
+Os serializers de query retornam 400 em input inválido (nunca ignoram em silêncio).
+O serializer de resposta fixa o contrato de campos que o frontend consome.
 """
 from rest_framework import serializers
 
@@ -9,7 +9,7 @@ from rest_framework import serializers
 class OccurrenceQuerySerializer(serializers.Serializer):
     initialdate = serializers.DateField(required=False)
     finaldate = serializers.DateField(required=False)
-    # `type` may repeat (multi-select); DRF reads getlist() from the QueryDict.
+    # `type` pode repetir (multi-select); o DRF lê getlist() do QueryDict.
     type = serializers.ListField(child=serializers.CharField(), required=False)
     mainReason = serializers.CharField(required=False)
     city = serializers.CharField(required=False)
@@ -17,8 +17,8 @@ class OccurrenceQuerySerializer(serializers.Serializer):
     victimStatus = serializers.ChoiceField(
         choices=['fatalities', 'injuries', 'none', 'all'], required=False
     )
-    # `minLng,minLat,maxLng,maxLat` — parsed into a float tuple (the order
-    # Polygon.from_bbox expects). Lets the map fetch only the current viewport.
+    # `minLng,minLat,maxLng,maxLat` — vira tupla de floats (ordem que
+    # Polygon.from_bbox espera). Deixa o mapa buscar só o viewport atual.
     bbox = serializers.CharField(required=False)
 
     def validate_bbox(self, value):
@@ -46,15 +46,15 @@ class OccurrenceQuerySerializer(serializers.Serializer):
 
 
 class DensityQuerySerializer(OccurrenceQuerySerializer):
-    """Common filters + bbox (inherited) plus the grid cell size."""
+    """Filtros comuns + bbox (herdados) mais o tamanho da célula do grid."""
 
-    # Cell side in degrees (~0.005 ≈ 500 m at RJ). Clamped to keep the grid sane.
+    # Lado da célula em graus (~0.005 ≈ 500 m no RJ). Limitado p/ manter o grid sano.
     cell = serializers.FloatField(required=False, min_value=0.001, max_value=0.05, default=0.005)
 
 
 class PaginationQuerySerializer(serializers.Serializer):
     page = serializers.IntegerField(required=False, min_value=1, default=1)
-    # Hard upper bound: list endpoints are never unbounded.
+    # Teto rígido: endpoints de lista nunca são ilimitados.
     take = serializers.IntegerField(required=False, min_value=1, max_value=5000, default=100)
 
 

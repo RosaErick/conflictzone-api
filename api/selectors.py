@@ -1,7 +1,7 @@
-"""Query layer: filters + SQL aggregations over indexed columns.
+"""Camada de consulta: filtros + agregações SQL sobre colunas indexadas.
 
-Keeps business/query logic out of the views. Series are bucketed in local time
-(America/Sao_Paulo) so a "day" matches what the user sees, while rows stay UTC.
+Tira a lógica de query das views. As séries são agrupadas em horário local
+(America/Sao_Paulo) para o "dia" bater com o do usuário; as linhas ficam em UTC.
 """
 from __future__ import annotations
 
@@ -22,11 +22,11 @@ _TRUNC = {'day': TruncDay, 'week': TruncWeek, 'month': TruncMonth}
 
 
 def filtered_occurrences(filters: dict) -> QuerySet:
-    """Apply validated filters to the Occurrence queryset (all in SQL)."""
+    """Aplica os filtros validados ao queryset de Occurrence (tudo em SQL)."""
     qs = Occurrence.objects.all()
 
-    # Date bounds: convert local calendar dates to a precise UTC half-open range
-    # [start, end) so boundary rows near midnight land on the right side.
+    # Datas: converte o dia local num intervalo UTC semiaberto [início, fim) para
+    # ocorrências perto da meia-noite caírem no lado certo.
     if filters.get('initialdate'):
         start = datetime.combine(filters['initialdate'], time.min, tzinfo=LOCAL_TZ)
         qs = qs.filter(occurred_at__gte=start)
@@ -55,29 +55,24 @@ def filtered_occurrences(filters: dict) -> QuerySet:
         qs = qs.filter(fatalities=0, injuries=0)
 
     if filters.get('bbox'):
-        # bbox is (minLng, minLat, maxLng, maxLat) — the order from_bbox expects.
+        # bbox = (minLng, minLat, maxLng, maxLat) — ordem que from_bbox espera.
         poly = Polygon.from_bbox(filters['bbox'])
         poly.srid = 4326
-        qs = qs.filter(location__intersects=poly)  # hits the GiST index on location
+        qs = qs.filter(location__intersects=poly)  # usa o índice GiST em location
 
     return qs
 
 
 def density_grid(qs: QuerySet, cell: float) -> dict:
-    """Aggregate occurrences into a square grid and return a GeoJSON FeatureCollection.
+    """Agrega ocorrências num grid quadrado → GeoJSON FeatureCollection.
 
-    Snaps each point to a grid of side ``cell`` (degrees) with PostGIS
-    ``ST_SnapToGrid`` and counts per cell. Output is one center point per cell
-    with ``properties.count`` — ready for a MapLibre heatmap weight.
+    Snapa cada ponto a um grid de lado ``cell`` (graus) com ``ST_SnapToGrid`` e
+    conta por célula; cada feature é o centro da célula com ``properties.count``
+    (peso pronto p/ heatmap do MapLibre). Reusa o WHERE de ``filtered_occurrences``
+    compilando o queryset. `location` é geography → cast p/ geometry. SQL cru,
+    100% parametrizado (nunca interpolar valor de usuário).
 
-    Reuses the WHERE of ``filtered_occurrences`` by compiling the incoming
-    queryset, so every filter (incl. bbox) applies for free.
-
-    ponytail: square grid via ``ST_SnapToGrid`` (PostGIS core — no extra
-    extension). Upgrade to H3 or vector tiles (``ST_AsMVT``) when the square grid
-    bothers or the dataset grows much. `location` is geography, so we cast to
-    geometry (``::geometry``) — ``ST_SnapToGrid`` only accepts geometry. Raw but
-    fully parameterized: never interpolate user values into SQL.
+    ponytail: grid quadrado (PostGIS nativo); troque por H3/vector tiles se crescer.
     """
     located = qs.filter(location__isnull=False).values('location')
     inner_sql, inner_params = located.query.sql_with_params()
@@ -91,7 +86,7 @@ def density_grid(qs: QuerySet, cell: float) -> dict:
         cur.execute(sql, (cell, *inner_params))
         rows = cur.fetchall()
 
-    half = cell / 2  # ST_SnapToGrid returns the cell origin; offset to its center.
+    half = cell / 2  # ST_SnapToGrid devolve a origem da célula; desloca p/ o centro.
     return {
         'type': 'FeatureCollection',
         'features': [
@@ -124,7 +119,7 @@ def stats(qs: QuerySet) -> dict:
 
 
 def timeseries(qs: QuerySet, granularity: str) -> list[dict]:
-    """Incidents/fatalities/injuries bucketed by day|week|month in local tz."""
+    """Incidentes/mortos/feridos agrupados por dia|semana|mês no fuso local."""
     trunc = _TRUNC[granularity]
     rows = (
         qs.annotate(period=trunc('occurred_at', tzinfo=LOCAL_TZ))
@@ -148,7 +143,7 @@ def timeseries(qs: QuerySet, granularity: str) -> list[dict]:
 
 
 def breakdown(qs: QuerySet, field: str) -> list[dict]:
-    """Incidents + fatalities grouped by a column (e.g. city, neighborhood)."""
+    """Incidentes + mortos agrupados por uma coluna (ex.: city, neighborhood)."""
     rows = (
         qs.values(field)
         .annotate(incidents=Count('id'), fatalities=Sum('fatalities'))

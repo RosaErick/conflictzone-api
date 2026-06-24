@@ -1,4 +1,4 @@
-"""Selector/aggregation tests, including local-timezone bucketing."""
+"""Testes de selectors/agregação, incluindo agrupamento no fuso local."""
 import uuid
 from datetime import UTC, date, datetime
 
@@ -23,7 +23,7 @@ def occ(occurred_at, **kw):
 
 class TimeseriesTzTests(TestCase):
     def test_day_bucketing_uses_local_timezone(self):
-        # 2024-01-02 01:00 UTC == 2024-01-01 22:00 in America/Sao_Paulo (-03:00).
+        # 2024-01-02 01:00 UTC == 2024-01-01 22:00 em America/Sao_Paulo (-03:00).
         occ(datetime(2024, 1, 2, 1, 0, tzinfo=UTC))
         # 2024-01-02 04:00 UTC == 2024-01-02 01:00 local.
         occ(datetime(2024, 1, 2, 4, 0, tzinfo=UTC))
@@ -49,9 +49,9 @@ class StatsTests(TestCase):
 
 class FilterTests(TestCase):
     def test_date_range_is_half_open_in_local_time(self):
-        # 2024-01-01 02:00 UTC == 2023-12-31 23:00 local -> outside Jan 1 filter.
+        # 2024-01-01 02:00 UTC == 2023-12-31 23:00 local -> fora do filtro de 1/jan.
         occ(datetime(2024, 1, 1, 2, 0, tzinfo=UTC), city='Out')
-        # 2024-01-01 12:00 UTC == 09:00 local -> inside.
+        # 2024-01-01 12:00 UTC == 09:00 local -> dentro.
         occ(datetime(2024, 1, 1, 12, 0, tzinfo=UTC), city='In')
 
         qs = selectors.filtered_occurrences(
@@ -92,12 +92,12 @@ class BboxFilterTests(TestCase):
 
 class DensityGridTests(TestCase):
     def test_points_in_same_cell_are_grouped(self):
-        # Two points within 0.01° of each other snap to the same grid node; a third
-        # is far enough to land in its own cell.
+        # Dois pontos a menos de 0.01° snapam para o mesmo nó do grid; um terceiro
+        # fica longe o bastante para cair na própria célula.
         occ(DT, location=Point(-43.201, -22.901, srid=4326))
         occ(DT, location=Point(-43.202, -22.902, srid=4326))
         occ(DT, location=Point(-43.260, -22.960, srid=4326))
-        occ(DT, location=None)  # null location is ignored
+        occ(DT, location=None)  # location nula é ignorada
 
         fc = selectors.density_grid(Occurrence.objects.all(), 0.01)
         self.assertEqual(fc['type'], 'FeatureCollection')

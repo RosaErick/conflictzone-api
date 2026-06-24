@@ -1,8 +1,8 @@
-"""Isolated Fogo Cruzado HTTP client.
+"""Cliente HTTP isolado da Fogo Cruzado.
 
-Talks HTTP to the provider and nothing else: no Django models, no DB, no app
-imports. One client per ingestion run logs in once and reuses the token, so the
-old per-request token cache is no longer needed.
+Só fala HTTP com o provedor: sem models Django, sem DB, sem imports do app. Um
+cliente por execução de ingestão loga uma vez e reusa o token, então o cache de
+token por request deixou de ser necessário.
 """
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ OCCURRENCES_URL = f'{BASE}/occurrences'
 
 
 class FogoCruzadoError(RuntimeError):
-    """A page failed mid-pagination; caller keeps what it already fetched."""
+    """Uma página falhou no meio da paginação; o chamador mantém o que já buscou."""
 
 
 class FogoCruzadoClient:
@@ -49,7 +49,7 @@ class FogoCruzadoClient:
         return token
 
     def _get_page(self, params: dict) -> dict:
-        """GET one page, refreshing the token once on 401."""
+        """Busca uma página, renovando o token uma vez em caso de 401."""
         for attempt in (1, 2):
             headers = {'Authorization': f'Bearer {self.login()}'}
             resp = self.session.get(
@@ -63,10 +63,10 @@ class FogoCruzadoClient:
         raise FogoCruzadoError('unauthorized after token refresh')
 
     def iter_occurrences(self, *, initial_date=None, final_date=None) -> Iterator[list[dict]]:
-        """Yield raw occurrence records page by page for the whole state.
+        """Gera os registros crus página a página para o estado inteiro.
 
-        Raises FogoCruzadoError if a page fails, *after* earlier pages were
-        yielded — the caller persists those and records a `partial` run.
+        Levanta FogoCruzadoError se uma página falhar, *depois* de já ter gerado as
+        anteriores — o chamador persiste essas e registra um run `partial`.
         """
         base = {'idState': self.state_id}
         if initial_date:

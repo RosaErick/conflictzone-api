@@ -3,7 +3,7 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-    """Enable PostGIS before any geometry column is created."""
+    """Habilita o PostGIS antes de criar qualquer coluna geométrica."""
 
     initial = True
 
