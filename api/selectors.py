@@ -9,6 +9,8 @@ from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
 from django.conf import settings
+from django.contrib.gis.geos import Polygon
+from django.db import connection
 from django.db.models import Count, Q, QuerySet, Sum
 from django.db.models.functions import TruncDay, TruncMonth, TruncWeek
 
@@ -52,7 +54,55 @@ def filtered_occurrences(filters: dict) -> QuerySet:
     elif status == 'none':
         qs = qs.filter(fatalities=0, injuries=0)
 
+    if filters.get('bbox'):
+        # bbox is (minLng, minLat, maxLng, maxLat) — the order from_bbox expects.
+        poly = Polygon.from_bbox(filters['bbox'])
+        poly.srid = 4326
+        qs = qs.filter(location__intersects=poly)  # hits the GiST index on location
+
     return qs
+
+
+def density_grid(qs: QuerySet, cell: float) -> dict:
+    """Aggregate occurrences into a square grid and return a GeoJSON FeatureCollection.
+
+    Snaps each point to a grid of side ``cell`` (degrees) with PostGIS
+    ``ST_SnapToGrid`` and counts per cell. Output is one center point per cell
+    with ``properties.count`` — ready for a MapLibre heatmap weight.
+
+    Reuses the WHERE of ``filtered_occurrences`` by compiling the incoming
+    queryset, so every filter (incl. bbox) applies for free.
+
+    ponytail: square grid via ``ST_SnapToGrid`` (PostGIS core — no extra
+    extension). Upgrade to H3 or vector tiles (``ST_AsMVT``) when the square grid
+    bothers or the dataset grows much. `location` is geography, so we cast to
+    geometry (``::geometry``) — ``ST_SnapToGrid`` only accepts geometry. Raw but
+    fully parameterized: never interpolate user values into SQL.
+    """
+    located = qs.filter(location__isnull=False).values('location')
+    inner_sql, inner_params = located.query.sql_with_params()
+    sql = (
+        'SELECT ST_X(c) AS gx, ST_Y(c) AS gy, count(*) AS n '
+        'FROM (SELECT ST_SnapToGrid(location::geometry, %s) AS c '
+        f'FROM ({inner_sql}) sub) g '
+        'GROUP BY c'
+    )
+    with connection.cursor() as cur:
+        cur.execute(sql, (cell, *inner_params))
+        rows = cur.fetchall()
+
+    half = cell / 2  # ST_SnapToGrid returns the cell origin; offset to its center.
+    return {
+        'type': 'FeatureCollection',
+        'features': [
+            {
+                'type': 'Feature',
+                'geometry': {'type': 'Point', 'coordinates': [gx + half, gy + half]},
+                'properties': {'count': n},
+            }
+            for gx, gy, n in rows
+        ],
+    }
 
 
 def stats(qs: QuerySet) -> dict:

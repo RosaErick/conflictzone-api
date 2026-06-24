@@ -24,6 +24,12 @@
 - [x] **Backup local automático.** [`scripts/backup.sh`](../scripts/backup.sh):
   `pg_dump` rolável (temp → valida tamanho → move atômico; nunca sobrescreve um
   backup bom com um ruim), agendado por cron.
+- [x] **Visualização espacial (heatmap + grid + bbox).** Filtro `bbox`
+  (`location__intersects`, usa o GiST) em todos os endpoints de ocorrência;
+  `GET /occurrences/density/` agrega em grid (`ST_SnapToGrid`) e devolve GeoJSON
+  com `count` por célula. Testes em `test_selectors.py`/`test_views.py`;
+  `EXPLAIN ANALYZE` confirma `Bitmap Index Scan` no bbox. Front (heatmap MapLibre
+  + fetch por viewport) é o repo `fogo-cruzado-insights`.
 
 ## Não feito / em aberto (decisões pendentes do dono)
 
@@ -47,12 +53,16 @@
 | Token em memória por run | re-login a cada run | logins caros/frequentes → cache compartilhado |
 | `take=1000` fixo por página | anos recentes (payload maior) cortam a resposta do upstream em janela larga; backfill grande precisa ser fatiado (ex.: por mês) | recorrência/incômodo → expor `FOGO_CRUZADO_PER_PAGE` (ex.: 250) p/ paginar respostas menores |
 
-## Ideias de visualização espacial (PostGIS, custo zero)
+## Visualização espacial — upgrades com gatilho (PostGIS, custo zero)
 
-São "mais query no Postgres que você já tem", não serviço pago:
-- **Clustering server-side** (`ST_ClusterDBSCAN`) — manda clusters, não 50k pontos.
-- **Heatmap por grid** (`ST_SnapToGrid`) — agrega em células, devolve poucos polígonos.
-- **Vector tiles** (`ST_AsMVT`) — tiles `.mvt` para MapLibre/Mapbox.
-- **Export estático** (GeoJSON/PMTiles por nginx/CDN) — tira o DB do hot path se
-  as visualizações forem "pontos + heatmap + filtros simples". Avaliar se há
-  necessidade real de query espacial dinâmica antes.
+Feito: **heatmap por grid** (`ST_SnapToGrid` via `/occurrences/density/`) e
+**fetch por viewport** (`bbox`). O que fica como upgrade — "mais query no
+Postgres que você já tem", não serviço pago:
+
+| Ideia | Gatilho de upgrade |
+|---|---|
+| **Grid quadrado → H3** (hexágonos) | grid quadrado incomodar (artefatos de borda) — exige extensão H3 fora da imagem |
+| **Vector tiles** (`ST_AsMVT`, tiles `.mvt`) | dataset crescer muito / precisar de pan-zoom fluido com muitos pontos crus |
+| **Clustering server-side** (`ST_ClusterDBSCAN`) | quiser clusters numerados em vez de heatmap/pontos |
+| **Coroplético por bairro** | precisar de mapa por polígono — exige importar os polígonos do RJ (não temos) |
+| **Export estático** (GeoJSON/PMTiles por nginx/CDN) | tirar o DB do hot path se as views virarem "pontos + heatmap + filtros simples" |
