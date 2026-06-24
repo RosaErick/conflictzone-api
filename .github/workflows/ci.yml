@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_DB: conflictzone
+          POSTGRES_USER: conflictzone
+          POSTGRES_PASSWORD: conflictzone
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install GeoDjango system libs
+        run: sudo apt-get update && sudo apt-get install -y binutils libproj-dev gdal-bin
+      - name: Install deps
+        run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: ruff check .
+      - name: Test
+        run: pytest
+        env:
+          DJANGO_SECRET_KEY: ci-secret-key
+          DJANGO_DEBUG: 'False'
+          POSTGRES_HOST: localhost
+          POSTGRES_PORT: '5432'
+          POSTGRES_DB: conflictzone
+          POSTGRES_USER: conflictzone
+          POSTGRES_PASSWORD: conflictzone
+          FOGO_CRUZADO_EMAIL: ci@example.com
+          FOGO_CRUZADO_PASSWORD: ci-password
