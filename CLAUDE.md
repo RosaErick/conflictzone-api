@@ -30,7 +30,19 @@ Mantenha o índice `docs/README.md` coerente. Docs desatualizados = bug.
   `ingest.py` (único ponto que toca o ORM) → `selectors.py` (query/agregação) →
   views finas. Sem lógica de negócio em view; sem `print` (use `logging`).
 - **Testes** para cada transformação em `api/tests/` (sem rede).
-- **Commits:** sem trailer `Co-Authored-By`. Não commitar `.env` nem `*.dump`.
+
+## Mensagens de commit e PR
+
+Diretas, concisas, explícitas. Dizem **o que** foi feito e **onde** mudou; o
+**porquê** só quando não for óbvio. Nada além disso — o histórico é público.
+
+- Assunto: `<área>: <o que foi feito>` — imperativo, conciso, sem ponto final
+  (ex.: `api: add bbox filter to /occurrences/`).
+- Corpo (se necessário): bullets diretos do que mudou e onde. **Sem** narrativa,
+  contexto de conversa, status ("pronto para…", "para um novo agente") ou tom.
+- **Nunca vaze**: referências a arquivos locais/gitignored, planos internos,
+  nomes de agentes, `.env`, dumps — nada que não seja a própria mudança.
+- Sem trailer `Co-Authored-By`. Não commitar `.env` nem `*.dump`.
 
 ## Orientação
 
