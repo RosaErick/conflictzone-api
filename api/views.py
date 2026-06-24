@@ -11,6 +11,7 @@ from . import selectors
 from .models import IngestionRun
 from .schemas import (
     by_city_schema,
+    density_schema,
     filters_schema,
     fogo_cruzado_health_schema,
     health_schema,
@@ -20,6 +21,7 @@ from .schemas import (
     timeseries_schema,
 )
 from .serializers import (
+    DensityQuerySerializer,
     OccurrenceQuerySerializer,
     OccurrenceSerializer,
     PaginationQuerySerializer,
@@ -142,6 +144,20 @@ def occurrences_view(request):
             'pages': (total + take - 1) // take if take else 0,
         },
     })
+
+
+@density_schema
+@api_view(['GET'])
+def density_view(request):
+    """Grid density (PostGIS) as GeoJSON — scales the map without shipping every point."""
+    s = DensityQuerySerializer(data=request.GET)
+    if not s.is_valid():
+        return Response(s.errors, status=400)
+    if stale := _stale_response():
+        return stale
+    filters = s.validated_data
+    qs = selectors.filtered_occurrences(filters)
+    return Response(selectors.density_grid(qs, filters['cell']))
 
 
 @stats_schema

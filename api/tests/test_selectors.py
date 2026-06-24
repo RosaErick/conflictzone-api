@@ -2,10 +2,13 @@
 import uuid
 from datetime import UTC, date, datetime
 
+from django.contrib.gis.geos import Point
 from django.test import TestCase
 
 from api import selectors
 from api.models import Occurrence
+
+DT = datetime(2024, 1, 1, 12, tzinfo=UTC)
 
 
 def occ(occurred_at, **kw):
@@ -76,3 +79,36 @@ class BreakdownTests(TestCase):
         rows = selectors.breakdown(Occurrence.objects.all(), 'city')
         self.assertEqual(rows[0], {'city': 'B', 'incidents': 2, 'fatalities': 0})
         self.assertEqual(rows[1], {'city': 'A', 'incidents': 1, 'fatalities': 1})
+
+
+class BboxFilterTests(TestCase):
+    def test_bbox_includes_and_excludes_by_location(self):
+        occ(DT, city='In', location=Point(-43.2, -22.9, srid=4326))
+        occ(DT, city='Out', location=Point(-40.0, -20.0, srid=4326))
+
+        qs = selectors.filtered_occurrences({'bbox': (-43.5, -23.0, -43.0, -22.5)})
+        self.assertEqual(list(qs.values_list('city', flat=True)), ['In'])
+
+
+class DensityGridTests(TestCase):
+    def test_points_in_same_cell_are_grouped(self):
+        # Two points within 0.01° of each other snap to the same grid node; a third
+        # is far enough to land in its own cell.
+        occ(DT, location=Point(-43.201, -22.901, srid=4326))
+        occ(DT, location=Point(-43.202, -22.902, srid=4326))
+        occ(DT, location=Point(-43.260, -22.960, srid=4326))
+        occ(DT, location=None)  # null location is ignored
+
+        fc = selectors.density_grid(Occurrence.objects.all(), 0.01)
+        self.assertEqual(fc['type'], 'FeatureCollection')
+        counts = sorted(f['properties']['count'] for f in fc['features'])
+        self.assertEqual(counts, [1, 2])
+        self.assertEqual(sum(counts), 3)
+
+    def test_bbox_filter_applies_to_density(self):
+        occ(DT, location=Point(-43.2, -22.9, srid=4326))
+        occ(DT, location=Point(-40.0, -20.0, srid=4326))
+
+        qs = selectors.filtered_occurrences({'bbox': (-43.5, -23.0, -43.0, -22.5)})
+        fc = selectors.density_grid(qs, 0.01)
+        self.assertEqual(sum(f['properties']['count'] for f in fc['features']), 1)

@@ -51,7 +51,7 @@ Auditoria de cada execução do job. Ver [ingestion.md](ingestion.md#auditoria-i
 Confirmados no banco (`\d api_occurrence`):
 
 ```
-gist  (location)          -- consultas geográficas (raio, bbox, clustering)
+gist  (location)          -- consultas geográficas: bbox + grid de densidade
 btree (occurred_at)       -- filtros e séries por data
 btree (city)              -- breakdown/filtro por cidade
 btree (main_reason)       -- filtro por tipo
@@ -62,6 +62,12 @@ unique(external_id)       -- dedup idempotente
 > Verificar "sem seq scan" em `EXPLAIN` só faz sentido **com volume**: em tabela
 > pequena o planner do Postgres prefere seq scan de propósito. Os índices existem
 > desde a modelagem; a verificação com `EXPLAIN` é uma tarefa de escala.
+
+O GiST de `location` deixou de ser ornamental: o filtro `bbox` em
+`filtered_occurrences` (`location__intersects`) e o `/occurrences/density/`
+(`ST_SnapToGrid` sobre `location::geometry`) batem nele. `EXPLAIN ANALYZE` do
+filtro bbox mostra `Bitmap Index Scan` no índice de `location`. `location` é
+`geography`; `ST_SnapToGrid` só aceita geometry, daí o cast `::geometry`.
 
 ## Timezone (não-negociável)
 

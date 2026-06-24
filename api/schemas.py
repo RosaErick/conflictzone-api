@@ -46,6 +46,13 @@ COMMON_PARAMETERS = [
         enum=['fatalities', 'injuries', 'none', 'all'],
         required=False,
     ),
+    OpenApiParameter(
+        name='bbox',
+        type=OpenApiTypes.STR,
+        location=OpenApiParameter.QUERY,
+        description='Bounding box "minLng,minLat,maxLng,maxLat" to filter the viewport',
+        required=False,
+    ),
 ]
 
 PAGINATION_PARAMETERS = [
@@ -185,6 +192,67 @@ Retrieve a paginated list of conflict/violence occurrences.
     },
     examples=[OpenApiExample('Success', value=OCCURRENCE_RESPONSE_EXAMPLE, response_only=True)],
     tags=['Occurrences']
+)
+
+
+DENSITY_RESPONSE_EXAMPLE = {
+    'type': 'FeatureCollection',
+    'features': [
+        {
+            'type': 'Feature',
+            'geometry': {'type': 'Point', 'coordinates': [-43.2575, -22.8925]},
+            'properties': {'count': 42},
+        }
+    ],
+}
+
+
+density_schema = extend_schema(
+    summary='Grid density (heatmap source)',
+    description='''
+Aggregates occurrences into a square grid with PostGIS `ST_SnapToGrid` and returns
+a GeoJSON `FeatureCollection` of cell-center points carrying `properties.count`.
+Built for a MapLibre heatmap weight at low zoom — agrega tudo num payload pequeno
+em vez de baixar todos os pontos.
+
+Accepts the common filters + `bbox` (recorta a área) + `cell` (grid side in
+degrees, default `0.005` ≈ 500 m, clamped to `0.001`–`0.05`).
+    ''',
+    parameters=COMMON_PARAMETERS + [
+        OpenApiParameter(
+            name='cell',
+            type=OpenApiTypes.NUMBER,
+            location=OpenApiParameter.QUERY,
+            description='Grid cell side in degrees (default 0.005, range 0.001–0.05)',
+            required=False,
+        ),
+    ],
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'type': {'type': 'string'},
+                'features': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'type': {'type': 'string'},
+                            'geometry': {'type': 'object'},
+                            'properties': {
+                                'type': 'object',
+                                'properties': {'count': {'type': 'integer'}},
+                            },
+                        },
+                    },
+                },
+            },
+        },
+        400: {'type': 'object'},
+        503: {'type': 'object', 'properties': {'error': {'type': 'string'}}},
+    },
+    examples=[OpenApiExample('Success', value=DENSITY_RESPONSE_EXAMPLE, response_only=True)],
+    tags=['Occurrences'],
 )
 
 

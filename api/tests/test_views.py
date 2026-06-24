@@ -2,6 +2,7 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 
+from django.contrib.gis.geos import Point
 from django.test import TestCase
 from django.utils import timezone as djtz
 
@@ -83,3 +84,25 @@ class ContractTests(TestCase):
         self.assertEqual(body['status'], 'ok')
         self.assertIsNotNone(body['lastIngestion'])
         self.assertIn('ageHours', body['lastIngestion'])
+
+
+class DensityTests(TestCase):
+    def test_density_returns_featurecollection(self):
+        make_run()
+        make_occ(location=Point(-43.2, -22.9, srid=4326))
+        body = self.client.get('/occurrences/density/').json()
+        self.assertEqual(body['type'], 'FeatureCollection')
+        self.assertEqual(body['features'][0]['properties']['count'], 1)
+
+    def test_invalid_bbox_is_400(self):
+        make_run()
+        make_occ(location=Point(-43.2, -22.9, srid=4326))
+        self.assertEqual(self.client.get('/occurrences/density/?bbox=1,2,3').status_code, 400)
+
+    def test_out_of_range_cell_is_400(self):
+        make_run()
+        self.assertEqual(self.client.get('/occurrences/density/?cell=1').status_code, 400)
+
+    def test_density_no_ingestion_is_503(self):
+        make_occ(location=Point(-43.2, -22.9, srid=4326))
+        self.assertEqual(self.client.get('/occurrences/density/').status_code, 503)
