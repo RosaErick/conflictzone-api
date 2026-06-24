@@ -6,6 +6,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-conflictzone}
       POSTGRES_USER: ${POSTGRES_USER:-conflictzone}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-conflictzone}
+    ports:
+      # Bound to the host loopback only: reachable via SSH tunnel, never public.
+      - "127.0.0.1:5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
