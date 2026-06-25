@@ -16,6 +16,8 @@ Views em [`api/views.py`](../api/views.py) (finas), query em
 | GET | `/occurrences/monthly/` | série mensal (alias de `timeseries?granularity=month`) |
 | GET | `/occurrences/timeseries/` | série por `day`/`week`/`month` |
 | GET | `/occurrences/by-city/` | breakdown por cidade |
+| GET | `/occurrences/by-neighborhood/` | breakdown por bairro (mesmo shape do by-city) |
+| GET | `/occurrences/by-type/` | breakdown por tipo (`mainReason`); chave `type` |
 | GET | `/occurrences/filters/` | tipos/cidades disponíveis para dropdowns |
 
 ## Parâmetros de filtro (validados na fronteira)

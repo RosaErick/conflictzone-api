@@ -106,3 +106,31 @@ class DensityTests(TestCase):
     def test_density_no_ingestion_is_503(self):
         make_occ(location=Point(-43.2, -22.9, srid=4326))
         self.assertEqual(self.client.get('/occurrences/density/').status_code, 503)
+
+
+class ByNeighborhoodTests(TestCase):
+    def test_breakdown_by_neighborhood_sorted_desc(self):
+        make_run()
+        make_occ(neighborhood='Centro')
+        make_occ(neighborhood='Centro')
+        make_occ(neighborhood='Bangu')
+        body = self.client.get('/occurrences/by-neighborhood/').json()
+        self.assertEqual(
+            body['data'][0], {'neighborhood': 'Centro', 'incidents': 2, 'fatalities': 2}
+        )
+        rows = {r['neighborhood']: r['incidents'] for r in body['data']}
+        self.assertEqual(rows, {'Centro': 2, 'Bangu': 1})
+
+
+class ByTypeTests(TestCase):
+    def test_breakdown_by_type_sorted_desc(self):
+        make_run()
+        make_occ(main_reason='Execução')
+        make_occ(main_reason='Execução')
+        make_occ(main_reason='Operação policial')
+        body = self.client.get('/occurrences/by-type/').json()
+        self.assertEqual(
+            body['data'][0], {'type': 'Execução', 'incidents': 2, 'fatalities': 2}
+        )
+        rows = {r['type']: r['incidents'] for r in body['data']}
+        self.assertEqual(rows, {'Execução': 2, 'Operação policial': 1})
