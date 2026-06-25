@@ -12,6 +12,7 @@ from .models import IngestionRun
 from .schemas import (
     by_city_schema,
     by_neighborhood_schema,
+    by_type_schema,
     density_schema,
     filters_schema,
     fogo_cruzado_health_schema,
@@ -228,6 +229,23 @@ def by_neighborhood_view(request):
     return Response(
         {'data': selectors.breakdown(selectors.filtered_occurrences(filters), 'neighborhood')}
     )
+
+
+@by_type_schema
+@api_view(['GET'])
+def by_type_view(request):
+    filters, err = _parse_filters(request)
+    if err:
+        return err
+    if stale := _stale_response():
+        return stale
+    rows = selectors.breakdown(selectors.filtered_occurrences(filters), 'main_reason')
+    # API expõe main_reason como `type` (igual no /occurrences/); remapeia a chave.
+    data = [
+        {'type': r['main_reason'], 'incidents': r['incidents'], 'fatalities': r['fatalities']}
+        for r in rows
+    ]
+    return Response({'data': data})
 
 
 @filters_schema

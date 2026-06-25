@@ -451,6 +451,50 @@ Returns a breakdown of occurrences by neighborhood for region charts.
 )
 
 
+BY_TYPE_RESPONSE_EXAMPLE = {
+    'data': [
+        {'type': 'Disparo de arma de fogo', 'incidents': 1840, 'fatalities': 120},
+        {'type': 'Operação policial', 'incidents': 612, 'fatalities': 88},
+        {'type': 'Execução', 'incidents': 240, 'fatalities': 210},
+    ]
+}
+
+
+by_type_schema = extend_schema(
+    summary='Get breakdown by occurrence type',
+    description='''
+Returns a breakdown of occurrences by type (`mainReason`) for ranking charts.
+
+**Response:** Array sorted by incidents (descending) with:
+- `type`: Occurrence type
+- `incidents`: Number of occurrences
+- `fatalities`: Number of fatalities
+    ''',
+    parameters=COMMON_PARAMETERS,
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'data': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'type': {'type': 'string'},
+                            'incidents': {'type': 'integer'},
+                            'fatalities': {'type': 'integer'},
+                        }
+                    }
+                }
+            }
+        },
+        500: {'type': 'object', 'properties': {'error': {'type': 'string'}}}
+    },
+    examples=[OpenApiExample('Success', value=BY_TYPE_RESPONSE_EXAMPLE, response_only=True)],
+    tags=['Statistics']
+)
+
+
 filters_schema = extend_schema(
     summary='Get available filter options',
     description='''

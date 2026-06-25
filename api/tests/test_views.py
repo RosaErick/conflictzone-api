@@ -120,3 +120,17 @@ class ByNeighborhoodTests(TestCase):
         )
         rows = {r['neighborhood']: r['incidents'] for r in body['data']}
         self.assertEqual(rows, {'Centro': 2, 'Bangu': 1})
+
+
+class ByTypeTests(TestCase):
+    def test_breakdown_by_type_sorted_desc(self):
+        make_run()
+        make_occ(main_reason='Execução')
+        make_occ(main_reason='Execução')
+        make_occ(main_reason='Operação policial')
+        body = self.client.get('/occurrences/by-type/').json()
+        self.assertEqual(
+            body['data'][0], {'type': 'Execução', 'incidents': 2, 'fatalities': 2}
+        )
+        rows = {r['type']: r['incidents'] for r in body['data']}
+        self.assertEqual(rows, {'Execução': 2, 'Operação policial': 1})
