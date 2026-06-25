@@ -405,6 +405,52 @@ Returns a breakdown of occurrences by city for region charts.
 )
 
 
+BY_NEIGHBORHOOD_RESPONSE_EXAMPLE = {
+    'data': [
+        {'neighborhood': 'Centro', 'incidents': 420, 'fatalities': 58},
+        {'neighborhood': 'Bangu', 'incidents': 311, 'fatalities': 41},
+        {'neighborhood': 'Campo Grande', 'incidents': 274, 'fatalities': 33},
+    ]
+}
+
+
+by_neighborhood_schema = extend_schema(
+    summary='Get breakdown by neighborhood',
+    description='''
+Returns a breakdown of occurrences by neighborhood for region charts.
+
+**Response:** Array sorted by incidents (descending) with:
+- `neighborhood`: Neighborhood name
+- `incidents`: Number of occurrences
+- `fatalities`: Number of fatalities
+    ''',
+    parameters=COMMON_PARAMETERS,
+    responses={
+        200: {
+            'type': 'object',
+            'properties': {
+                'data': {
+                    'type': 'array',
+                    'items': {
+                        'type': 'object',
+                        'properties': {
+                            'neighborhood': {'type': 'string'},
+                            'incidents': {'type': 'integer'},
+                            'fatalities': {'type': 'integer'},
+                        }
+                    }
+                }
+            }
+        },
+        500: {'type': 'object', 'properties': {'error': {'type': 'string'}}}
+    },
+    examples=[
+        OpenApiExample('Success', value=BY_NEIGHBORHOOD_RESPONSE_EXAMPLE, response_only=True)
+    ],
+    tags=['Statistics']
+)
+
+
 filters_schema = extend_schema(
     summary='Get available filter options',
     description='''

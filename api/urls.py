@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     by_city_view,
+    by_neighborhood_view,
     density_view,
     filters_view,
     fogo_cruzado_health_view,
@@ -21,5 +22,6 @@ urlpatterns = [
     path('occurrences/monthly/', monthly_view, name='monthly'),
     path('occurrences/timeseries/', timeseries_view, name='timeseries'),
     path('occurrences/by-city/', by_city_view, name='by-city'),
+    path('occurrences/by-neighborhood/', by_neighborhood_view, name='by-neighborhood'),
     path('occurrences/filters/', filters_view, name='filters'),
 ]

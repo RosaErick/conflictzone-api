@@ -11,6 +11,7 @@ from . import selectors
 from .models import IngestionRun
 from .schemas import (
     by_city_schema,
+    by_neighborhood_schema,
     density_schema,
     filters_schema,
     fogo_cruzado_health_schema,
@@ -214,6 +215,19 @@ def by_city_view(request):
     if stale := _stale_response():
         return stale
     return Response({'data': selectors.breakdown(selectors.filtered_occurrences(filters), 'city')})
+
+
+@by_neighborhood_schema
+@api_view(['GET'])
+def by_neighborhood_view(request):
+    filters, err = _parse_filters(request)
+    if err:
+        return err
+    if stale := _stale_response():
+        return stale
+    return Response(
+        {'data': selectors.breakdown(selectors.filtered_occurrences(filters), 'neighborhood')}
+    )
 
 
 @filters_schema
