@@ -42,6 +42,9 @@ class ValidationTests(TestCase):
     def test_take_over_max_is_400(self):
         self.assertEqual(self.client.get('/occurrences/?take=99999').status_code, 400)
 
+    def test_invalid_ordering_is_400(self):
+        self.assertEqual(self.client.get('/occurrences/?ordering=bogus').status_code, 400)
+
     def test_bad_granularity_is_400(self):
         r = self.client.get('/occurrences/timeseries/?granularity=hour')
         self.assertEqual(r.status_code, 400)

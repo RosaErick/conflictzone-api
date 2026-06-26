@@ -21,6 +21,31 @@ LOCAL_TZ = ZoneInfo(settings.LOCAL_TZ)
 _TRUNC = {'day': TruncDay, 'week': TruncWeek, 'month': TruncMonth}
 
 
+# Campos de ordenação expostos na API → coluna do modelo. A ordenação é
+# server-side porque a lista é paginada (ordenar só a página seria enganoso).
+ORDERING_FIELDS = {
+    'date': 'occurred_at',
+    'neighborhood': 'neighborhood',
+    'city': 'city',
+    'type': 'main_reason',
+    'fatalities': 'fatalities',
+    'injuries': 'injuries',
+}
+DEFAULT_ORDERING = '-occurred_at'
+
+
+def apply_ordering(qs: QuerySet, ordering: str | None) -> QuerySet:
+    """Ordena pelo campo pedido (ex.: `date`, `-neighborhood`); default: mais recente."""
+    if not ordering:
+        return qs.order_by(DEFAULT_ORDERING)
+    desc = ordering.startswith('-')
+    field = ORDERING_FIELDS.get(ordering.lstrip('-'))
+    if not field:
+        return qs.order_by(DEFAULT_ORDERING)
+    # Desempate estável por id para paginação consistente.
+    return qs.order_by(f'-{field}' if desc else field, '-id')
+
+
 def filtered_occurrences(filters: dict) -> QuerySet:
     """Aplica os filtros validados ao queryset de Occurrence (tudo em SQL)."""
     qs = Occurrence.objects.all()

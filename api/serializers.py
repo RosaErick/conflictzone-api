@@ -5,6 +5,8 @@ O serializer de resposta fixa o contrato de campos que o frontend consome.
 """
 from rest_framework import serializers
 
+from api.selectors import ORDERING_FIELDS
+
 
 class OccurrenceQuerySerializer(serializers.Serializer):
     initialdate = serializers.DateField(required=False)
@@ -20,6 +22,16 @@ class OccurrenceQuerySerializer(serializers.Serializer):
     # `minLng,minLat,maxLng,maxLat` — vira tupla de floats (ordem que
     # Polygon.from_bbox espera). Deixa o mapa buscar só o viewport atual.
     bbox = serializers.CharField(required=False)
+    # Ordenação server-side: ex. `date` / `-neighborhood`. Validada contra a allowlist.
+    ordering = serializers.CharField(required=False)
+
+    def validate_ordering(self, value):
+        if value.lstrip('-') not in ORDERING_FIELDS:
+            allowed = ', '.join(sorted(ORDERING_FIELDS))
+            raise serializers.ValidationError(
+                f'ordering must be one of: {allowed} (optionally prefixed with -)'
+            )
+        return value
 
     def validate_bbox(self, value):
         parts = value.split(',')
