@@ -132,7 +132,7 @@ def occurrences_view(request):
 
     page = page_s.validated_data['page']
     take = page_s.validated_data['take']
-    qs = selectors.filtered_occurrences(filters).order_by('-occurred_at')
+    qs = selectors.apply_ordering(selectors.filtered_occurrences(filters), filters.get('ordering'))
     total = qs.count()
     start = (page - 1) * take
     items = qs[start:start + take]

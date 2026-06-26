@@ -112,3 +112,17 @@ class DensityGridTests(TestCase):
         qs = selectors.filtered_occurrences({'bbox': (-43.5, -23.0, -43.0, -22.5)})
         fc = selectors.density_grid(qs, 0.01)
         self.assertEqual(sum(f['properties']['count'] for f in fc['features']), 1)
+
+
+class OrderingTests(TestCase):
+    def test_orders_by_field_with_default_fallback(self):
+        occ(datetime(2024, 1, 1, 12, tzinfo=UTC), neighborhood='Zeta')
+        occ(datetime(2024, 1, 2, 12, tzinfo=UTC), neighborhood='Alfa')
+
+        asc = selectors.apply_ordering(Occurrence.objects.all(), 'neighborhood')
+        self.assertEqual(list(asc.values_list('neighborhood', flat=True)), ['Alfa', 'Zeta'])
+
+        # default e ordering inválido caem no mais recente primeiro (2024-01-02).
+        for ordering in (None, 'bogus'):
+            qs = selectors.apply_ordering(Occurrence.objects.all(), ordering)
+            self.assertEqual(qs.first().neighborhood, 'Alfa')

@@ -30,6 +30,10 @@ Views em [`api/views.py`](../api/views.py) (finas), query em
 `minLng<maxLng`, `minLat<maxLat`, ranges válidos). Usa o índice **GiST** de
 `location` (`location__intersects`). Vale para todos os endpoints de ocorrência.
 
+`ordering` (só em `/occurrences/`) ordena server-side: `date`, `neighborhood`,
+`city`, `type`, `fatalities`, `injuries` (prefixe com `-` para desc; default
+`-date`). Valor fora da lista → 400.
+
 Input inválido → **400** com os erros do serializer (nunca ignorado em silêncio).
 
 ## `GET /occurrences/density/`
